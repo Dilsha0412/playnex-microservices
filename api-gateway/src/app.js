@@ -8,7 +8,6 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
-// Note: express.json() is intentionally removed here so that POST/PUT requests forward seamlessly without hanging.
 
 // User Service (5000)
 app.use('/api/users', createProxyMiddleware({
