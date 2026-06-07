@@ -19,3 +19,18 @@ exports.joinTournament = async (tournamentId, userId) => {
     tournament.players.push(userId);
     return await tournament.save();
 };
+
+// Get All Tournaments
+exports.getAllTournaments = async () => {
+    return await Tournament.find();
+};
+
+// Update Tournament
+exports.updateTournament = async (id, data) => {
+    return await Tournament.findByIdAndUpdate(id, data, { new: true });
+};
+
+// Delete Tournament
+exports.deleteTournament = async (id) => {
+    return await Tournament.findByIdAndDelete(id);
+};

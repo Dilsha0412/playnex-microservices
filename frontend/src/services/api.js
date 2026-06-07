@@ -12,15 +12,24 @@ const api = axios.create({
 export const userService = {
     register: (userData) => api.post('/api/users/register', userData),
     getProfile: (userId) => api.get(`/api/users/profile/${userId}`),
+    getAllUsers: () => api.get('/api/users'),
 };
 
 export const tournamentService = {
     getAll: () => api.get('/api/tournaments'),
     create: (data) => api.post('/api/tournaments/create', data),
+    join: (tournamentId, userId) => api.post('/api/tournaments/join', { tournamentId, userId }),
+    update: (id, data) => api.put(`/api/tournaments/${id}`, data),
+    delete: (id) => api.delete(`/api/tournaments/${id}`),
 };
 
 export const leaderboardService = {
     getTopPlayers: () => api.get('/api/leaderboard'),
+};
+
+export const matchService = {
+    create: (data) => api.post('/api/matches/create', data),
+    addResult: (matchId, winnerId) => api.post('/api/matches/result', { matchId, winnerId }),
 };
 
 export default api;
