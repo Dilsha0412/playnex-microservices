@@ -13,6 +13,7 @@ const OrganizerPage = () => {
     // Form states
     const [name, setName] = useState('');
     const [game, setGame] = useState('PUBG: Battlegrounds (PC)');
+    const [customGame, setCustomGame] = useState('');
     const [maxPlayers, setMaxPlayers] = useState(16);
     const [status, setStatus] = useState('setup');
     const [isEditing, setIsEditing] = useState(false);
@@ -54,7 +55,7 @@ const OrganizerPage = () => {
         try {
             const payload = {
                 name,
-                game,
+                game: game === 'Other' ? customGame : game,
                 maxPlayers: parseInt(maxPlayers),
                 status
             };
@@ -70,6 +71,8 @@ const OrganizerPage = () => {
             
             // Reset & Close
             setName('');
+            setGame('PUBG: Battlegrounds (PC)');
+            setCustomGame('');
             setIsEditing(false);
             setEditingId(null);
             setShowModal(false);
@@ -84,7 +87,22 @@ const OrganizerPage = () => {
         setIsEditing(true);
         setEditingId(t.id);
         setName(t.name);
-        setGame(t.game);
+
+        const predefinedGames = [
+            'PUBG: Battlegrounds (PC)',
+            'Fifa 23 (Playstation 5)',
+            'League Of Legends (PC)',
+            'Counter Strike Global Offensive'
+        ];
+
+        if (predefinedGames.includes(t.game)) {
+            setGame(t.game);
+            setCustomGame('');
+        } else {
+            setGame('Other');
+            setCustomGame(t.game);
+        }
+
         setMaxPlayers(t.maxPlayers || 16);
         setStatus(t.status || 'setup');
         setShowModal(true);
@@ -154,6 +172,7 @@ const OrganizerPage = () => {
                         setEditingId(null);
                         setName('');
                         setGame('PUBG: Battlegrounds (PC)');
+                        setCustomGame('');
                         setStatus('setup');
                         setShowModal(true);
                     }} 
@@ -359,8 +378,23 @@ const OrganizerPage = () => {
                                     <option value="Fifa 23 (Playstation 5)">Fifa 23 (Playstation 5)</option>
                                     <option value="League Of Legends (PC)">League Of Legends (PC)</option>
                                     <option value="Counter Strike Global Offensive">Counter Strike (PC)</option>
+                                    <option value="Other">Other</option>
                                 </select>
                             </div>
+
+                            {game === 'Other' && (
+                                <div className="form-group" style={{ marginTop: '15px', marginBottom: '15px' }}>
+                                    <label className="form-label">Specify Game & Platform</label>
+                                    <input 
+                                        type="text" 
+                                        className="form-input" 
+                                        placeholder="e.g. Valorant (PC)" 
+                                        required 
+                                        value={customGame}
+                                        onChange={(e) => setCustomGame(e.target.value)}
+                                    />
+                                </div>
+                            )}
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                 <div className="form-group">

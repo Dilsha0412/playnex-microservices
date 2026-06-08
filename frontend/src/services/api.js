@@ -11,7 +11,7 @@ const api = axios.create({
 
 export const userService = {
     register: (userData) => api.post('/api/users/register', userData),
-    getProfile: (userId) => api.get(`/api/users/profile/${userId}`),
+    getProfile: (userId) => api.get(`/api/users/${userId}`),
     getAllUsers: () => api.get('/api/users'),
 };
 
@@ -25,6 +25,7 @@ export const tournamentService = {
 
 export const leaderboardService = {
     getTopPlayers: () => api.get('/api/leaderboard'),
+    addScore: (userId, score) => api.post('/api/leaderboard/add-score', { userId, score }),
 };
 
 export const matchService = {
