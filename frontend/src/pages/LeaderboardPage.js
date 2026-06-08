@@ -270,11 +270,11 @@ const LeaderboardPage = () => {
                     {/* User Profile Card */}
                     {(() => {
                         const activeUserId = localStorage.getItem('playnex_userId');
-                        const activeUser = allUsers.find(u => u._id === activeUserId);
-                        const activeLeaderboard = players.find(p => p.id === activeUserId);
+                        const activeUser = activeUserId ? allUsers.find(u => u._id === activeUserId) : null;
+                        const activeLeaderboard = activeUserId ? players.find(p => p.id === activeUserId) : null;
                         
-                        const activeUsername = activeUser ? activeUser.username : 'Dilsha Jayasekara';
-                        const activeEmail = activeUser ? activeUser.email : 'dilsha@gmail.com';
+                        const activeUsername = activeUser ? activeUser.username : 'Guest';
+                        const activeEmail = activeUser ? activeUser.email : 'Login to save progress';
                         const activeWins = activeLeaderboard ? activeLeaderboard.wins : 0;
                         const activeLosses = activeLeaderboard ? activeLeaderboard.losses : 0;
                         const activeAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${activeUsername}`;

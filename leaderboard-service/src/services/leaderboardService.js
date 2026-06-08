@@ -33,3 +33,17 @@ exports.updateLeaderboard = async (winnerId, loserId) => {
 exports.getLeaderboard = async () => {
     return await Leaderboard.find().sort({ points: -1 });
 };
+
+// Add raw score from mini games
+exports.addScore = async (userId, score) => {
+    let userRecord = await Leaderboard.findOne({ userId });
+
+    if (!userRecord) {
+        userRecord = new Leaderboard({ userId });
+    }
+
+    userRecord.points += score;
+    await userRecord.save();
+
+    return userRecord;
+};

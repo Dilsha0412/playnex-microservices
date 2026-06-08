@@ -21,3 +21,14 @@ exports.getLeaderboard = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// Add raw score
+exports.addScore = async (req, res) => {
+    const { userId, score } = req.body;
+    try {
+        const result = await leaderboardService.addScore(userId, score);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
