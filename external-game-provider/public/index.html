@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Race Game (External Provider)</title>
+    <style>
+        body { margin: 0; padding: 0; background: #222; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        #gameCanvas { background: #333; border-left: 5px solid #fff; border-right: 5px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
+        h1 { margin: 0 0 20px 0; font-size: 48px; color: #00fff0; text-shadow: 0 0 10px rgba(0,255,240,0.5); }
+        button { padding: 15px 30px; font-size: 20px; font-weight: bold; background: #00fff0; color: #111; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #fff; box-shadow: 0 0 15px #00fff0; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <div class="ui" id="scoreDisplay">Score: 0</div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <div id="overlay">
+        <h1 id="mainTitle">NEON RACER</h1>
+        <p id="finalScore" style="font-size: 24px; margin-bottom: 30px; display: none;">Final Score: 0</p>
+        <button id="startBtn">START GAME</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('startBtn');
+        const mainTitle = document.getElementById('mainTitle');
+        const finalScoreText = document.getElementById('finalScore');
+
+        let isRunning = false;
+        let score = 0;
+        let speed = 5;
+        let car = { x: 175, y: 500, width: 50, height: 80 };
+        let obstacles = [];
+        let keys = {};
+
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        startBtn.addEventListener('click', startGame);
+
+        function startGame() {
+            isRunning = true;
+            score = 0;
+            speed = 5;
+            car.x = 175;
+            obstacles = [];
+            overlay.style.display = 'none';
+            scoreDisplay.innerText = 'Score: ' + score;
+            requestAnimationFrame(update);
+        }
+
+        function gameOver() {
+            isRunning = false;
+            overlay.style.display = 'flex';
+            mainTitle.innerText = 'GAME OVER';
+            finalScoreText.innerText = 'Final Score: ' + score;
+            finalScoreText.style.display = 'block';
+            startBtn.innerText = 'PLAY AGAIN';
+
+            // IMPORTANT: Send score to the parent window (the platform)
+            // This is how real external games report scores back via iframe postMessage
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'GAME_OVER',
+                    score: score
+                }, '*');
+            }
+        }
+
+        function update() {
+            if (!isRunning) return;
+
+            // Move Car
+            if (keys['ArrowLeft'] && car.x > 0) car.x -= 7;
+            if (keys['ArrowRight'] && car.x < canvas.width - car.width) car.x += 7;
+
+            // Generate Obstacles
+            if (Math.random() < 0.03 + (score * 0.0001)) {
+                let w = Math.random() * 50 + 30;
+                let x = Math.random() * (canvas.width - w);
+                obstacles.push({ x: x, y: -100, width: w, height: 20 });
+            }
+
+            // Update Obstacles & Score
+            score++;
+            if (score % 100 === 0) speed += 0.5;
+            scoreDisplay.innerText = 'Score: ' + score;
+
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Road Lines
+            ctx.fillStyle = '#555';
+            for(let i=0; i<600; i+=60) {
+                ctx.fillRect(195, i + (score % 60), 10, 30);
+            }
+
+            // Draw Car
+            ctx.fillStyle = '#00fff0';
+            ctx.fillRect(car.x, car.y, car.width, car.height);
+            ctx.fillStyle = '#222';
+            ctx.fillRect(car.x + 10, car.y + 10, car.width - 20, 20); // window
+
+            // Draw Obstacles & Check Collision
+            ctx.fillStyle = '#ff007f';
+            for (let i = 0; i < obstacles.length; i++) {
+                let obs = obstacles[i];
+                obs.y += speed;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Collision
+                if (
+                    car.x < obs.x + obs.width &&
+                    car.x + car.width > obs.x &&
+                    car.y < obs.y + obs.height &&
+                    car.y + car.height > obs.y
+                ) {
+                    gameOver();
+                    return; // Stop updating
+                }
+            }
+
+            // Remove old obstacles
+            obstacles = obstacles.filter(obs => obs.y < canvas.height);
+
+            requestAnimationFrame(update);
+        }
+    </script>
+</body>
+</html>
