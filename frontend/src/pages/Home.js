@@ -46,7 +46,7 @@ const Home = () => {
     const handleJoinTournament = async (t) => {
         const userId = localStorage.getItem('playnex_userId');
         if (!userId) {
-            alert('Active profile has not resolved yet. Please wait a moment.');
+            alert('You are currently in Guest Mode. Please select a player profile from the top-right corner of the Navbar to join tournaments!');
             return;
         }
 

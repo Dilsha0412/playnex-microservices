@@ -168,7 +168,7 @@ const BracketPage = () => {
     const handleJoinTournament = async () => {
         const userId = localStorage.getItem('playnex_userId');
         if (!userId) {
-            alert("User profile hasn't loaded yet. Please refresh.");
+            alert("You are currently in Guest Mode. Please select a player profile from the top-right corner of the Navbar to join tournaments!");
             return;
         }
 

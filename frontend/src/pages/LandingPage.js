@@ -219,23 +219,6 @@ const LandingPage = () => {
 
                 <div style={rightNavStyle}>
                     <button 
-                        onClick={() => navigate('/home')}
-                        style={{
-                            background: 'transparent',
-                            color: '#ffffff',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            borderRadius: '20px',
-                            padding: '8px 20px',
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
-                        className="btn-hover-glow"
-                    >
-                        Tutorial
-                    </button>
-                    <button 
                         onClick={() => navigate('/register')}
                         style={{
                             background: '#ffffff',
