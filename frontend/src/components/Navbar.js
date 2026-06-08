@@ -5,23 +5,41 @@ import { userService } from '../services/api';
 const Navbar = () => {
     const location = useLocation();
     const [user, setUser] = useState(null);
+    const [allUsers, setAllUsers] = useState([]);
 
     useEffect(() => {
         const fetchActiveUser = async () => {
-            const userId = localStorage.getItem('playnex_userId');
-            if (userId) {
-                try {
+            try {
+                const usersResponse = await userService.getAllUsers();
+                if (usersResponse.data) {
+                    setAllUsers(usersResponse.data);
+                }
+
+                const userId = localStorage.getItem('playnex_userId');
+                if (userId) {
                     const response = await userService.getProfile(userId);
                     if (response.data) {
                         setUser(response.data);
                     }
-                } catch (err) {
-                    console.error("Failed to fetch active user in Navbar:", err.message);
+                } else {
+                    setUser(null);
                 }
+            } catch (err) {
+                console.error("Failed to fetch active user/all users in Navbar:", err.message);
             }
         };
         fetchActiveUser();
     }, []);
+
+    const handleUserSwitch = (e) => {
+        const newUserId = e.target.value;
+        if (!newUserId) {
+            localStorage.removeItem('playnex_userId');
+        } else {
+            localStorage.setItem('playnex_userId', newUserId);
+        }
+        window.location.reload(); // Reload to refresh all components with new user
+    };
 
     // Generate readable page title breadcrumb based on route
     const getBreadcrumbs = () => {
@@ -168,17 +186,43 @@ const Navbar = () => {
                 </button>
 
                 {/* Profile Card */}
-                <div style={avatarAreaStyle}>
-                    <img
-                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user ? user.username : 'Dilsha Jayasekara'}`}
-                        alt="User Avatar"
-                        style={avatarImageStyle}
-                    />
-                    <div style={userInfoStyle} className="hidden-mobile">
-                        <span style={userNameStyle}>{user ? user.username : 'Dilsha Jayasekara'}</span>
-                        <span style={userStatusStyle}>
-                            {user ? (user.username === 'Dilsha Jayasekara' || user.username === 'Elife Yeon' ? 'Legendary Trainer' : 'Challenger') : 'Legendary Trainer'}
-                        </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <select 
+                        value={user ? user._id : ''} 
+                        onChange={handleUserSwitch}
+                        style={{
+                            background: '#1A162B',
+                            color: '#00fff0',
+                            border: '1px solid #00fff0',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            fontSize: '0.9rem',
+                            fontWeight: 'bold',
+                            minWidth: '150px'
+                        }}
+                    >
+                        <option value="">Guest Mode (Viewer)</option>
+                        {allUsers.map(u => (
+                            <option key={u._id} value={u._id} style={{ background: '#1A162B', color: '#fff' }}>
+                                {u.username}
+                            </option>
+                        ))}
+                    </select>
+
+                    <div style={avatarAreaStyle}>
+                        <img
+                            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user ? user.username : 'Guest'}`}
+                            alt="User Avatar"
+                            style={avatarImageStyle}
+                        />
+                        <div style={userInfoStyle} className="hidden-mobile">
+                            <span style={userNameStyle}>{user ? user.username : 'Guest'}</span>
+                            <span style={userStatusStyle}>
+                                {user ? (user.username === 'Dilsha Jayasekara' || user.username === 'Elife Yeon' ? 'Legendary Trainer' : 'Challenger') : 'Guest Mode'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

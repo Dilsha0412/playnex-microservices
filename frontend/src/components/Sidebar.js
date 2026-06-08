@@ -55,6 +55,15 @@ const Sidebar = () => {
                     <line x1="23" y1="11" x2="17" y2="11" />
                 </svg>
             )
+        },
+        {
+            path: '/external-game',
+            name: 'Play External Game',
+            icon: (
+                <svg className="menu-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 9.36l-6.13 6.13a1 1 0 0 1-1.41-1.41l6.13-6.13a6 6 0 0 1 9.36-7.94l-3.77 3.77a1 1 0 0 0 0 1.4z"></path>
+                </svg>
+            )
         }
     ];
 
@@ -164,9 +173,32 @@ const Sidebar = () => {
 
             {/* Bottom Meta Links */}
             <div style={footerStyle}>
-                <Link to="/subscription" style={footerLinkStyle} className="sidebar-link">Subscription</Link>
-                <Link to="/permissions" style={footerLinkStyle} className="sidebar-link">Permissions</Link>
-                <Link to="/settings" style={footerLinkStyle} className="sidebar-link">Settings</Link>
+                <button 
+                    onClick={() => {
+                        localStorage.removeItem('playnex_userId');
+                        window.location.href = '/';
+                    }} 
+                    style={{
+                        ...footerLinkStyle,
+                        background: 'rgba(255, 0, 127, 0.1)',
+                        color: 'var(--color-pink)',
+                        border: '1px solid var(--color-pink)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }} 
+                    className="sidebar-link"
+                >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Logout
+                </button>
             </div>
         </div>
     );

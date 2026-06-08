@@ -133,12 +133,12 @@ body {
 
 /* Buttons styling */
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-cyan) 0%, var(--color-purple) 100%);
+  background: var(--color-cyan);
   border: none;
   border-radius: 8px;
-  color: #fff;
+  color: var(--bg-deep);
   font-family: var(--font-family);
-  font-weight: 600;
+  font-weight: 700;
   padding: 10px 20px;
   cursor: pointer;
   transition: var(--transition-smooth);
@@ -201,7 +201,7 @@ body {
 }
 
 .btn-success {
-  background: linear-gradient(135deg, var(--color-green) 0%, #009944 100%);
+  background: var(--color-green);
   border: none;
   border-radius: 8px;
   color: #0c0822;
