@@ -17,3 +17,8 @@ exports.addResult = async (matchId, winnerId) => {
 
     return await match.save();
 };
+
+// Get Matches by Tournament
+exports.getMatchesByTournament = async (tournamentId) => {
+    return await Match.find({ tournamentId });
+};
