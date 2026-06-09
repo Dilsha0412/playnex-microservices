@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tournamentService } from '../services/api';
+import { useNotification } from '../context/NotificationContext';
 
 const OrganizerPage = () => {
+    const { success, error, confirm } = useNotification();
     const navigate = useNavigate();
     const [tournaments, setTournaments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -16,6 +18,7 @@ const OrganizerPage = () => {
     const [customGame, setCustomGame] = useState('');
     const [maxPlayers, setMaxPlayers] = useState(16);
     const [status, setStatus] = useState('setup');
+    const [competitorType, setCompetitorType] = useState('players');
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
@@ -23,10 +26,12 @@ const OrganizerPage = () => {
     const gameDropdownRef = useRef(null);
     const maxPlayersDropdownRef = useRef(null);
     const statusDropdownRef = useRef(null);
+    const competitorTypeDropdownRef = useRef(null);
 
     const [isGameDropdownOpen, setIsGameDropdownOpen] = useState(false);
     const [isMaxPlayersDropdownOpen, setIsMaxPlayersDropdownOpen] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+    const [isCompetitorTypeDropdownOpen, setIsCompetitorTypeDropdownOpen] = useState(false);
 
     const gameOptions = [
         { value: 'PUBG: Battlegrounds (PC)', label: 'PUBG: Battlegrounds (PC)' },
@@ -49,6 +54,11 @@ const OrganizerPage = () => {
         { value: 'completed', label: 'Completed' }
     ];
 
+    const competitorTypeOptions = [
+        { value: 'players', label: 'Individual Players' },
+        { value: 'teams', label: 'Teams' }
+    ];
+
     const fetchTournaments = async () => {
         try {
             setLoading(true);
@@ -61,6 +71,7 @@ const OrganizerPage = () => {
                 maxPlayers: t.maxPlayers || 16,
                 date: 'Just now',
                 mode: 'Online',
+                competitorType: t.competitorType || 'players',
                 iconColor: t.game.toLowerCase().includes('pubg') ? '#ffd166' : 
                            t.game.toLowerCase().includes('fifa') ? '#ef476f' : 
                            t.game.toLowerCase().includes('valorant') ? '#00f5d4' : '#118ab2'
@@ -88,6 +99,9 @@ const OrganizerPage = () => {
             if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
                 setIsStatusDropdownOpen(false);
             }
+            if (competitorTypeDropdownRef.current && !competitorTypeDropdownRef.current.contains(event.target)) {
+                setIsCompetitorTypeDropdownOpen(false);
+            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -101,7 +115,7 @@ const OrganizerPage = () => {
         e.preventDefault();
         const parsedMaxPlayers = parseInt(maxPlayers, 10);
         if (![2, 4, 8, 16].includes(parsedMaxPlayers)) {
-            alert('Tournament player limit must be 2, 4, 8, or 16.');
+            error('Tournament competitor limit must be 2, 4, 8, or 16.');
             return;
         }
         try {
@@ -109,16 +123,17 @@ const OrganizerPage = () => {
                 name,
                 game: game === 'Other' ? customGame : game,
                 maxPlayers: parsedMaxPlayers,
-                status
+                status,
+                competitorType
             };
             
             if (isEditing) {
                 // Call backend update
                 await tournamentService.update(editingId, payload);
-                alert('Tournament updated successfully!');
+                success('Tournament updated successfully!');
             } else {
                 await tournamentService.create(payload);
-                alert('Tournament created successfully!');
+                success('Tournament created successfully!');
             }
             
             // Reset & Close
@@ -129,9 +144,9 @@ const OrganizerPage = () => {
             setEditingId(null);
             setShowModal(false);
             fetchTournaments();
-        } catch (error) {
-            alert('Action failed: ' + (error.response?.data?.error || error.message));
-            console.error(error);
+        } catch (err) {
+            error('Action failed: ' + (err.response?.data?.error || err.message));
+            console.error(err);
         }
     };
 
@@ -157,18 +172,24 @@ const OrganizerPage = () => {
 
         setMaxPlayers(t.maxPlayers || 16);
         setStatus(t.status || 'setup');
+        setCompetitorType(t.competitorType || 'players');
         setShowModal(true);
     };
 
     const handleDeleteClick = async (t) => {
-        if (window.confirm(`Are you sure you want to permanently delete the tournament "${t.name}"?`)) {
+        const isConfirmed = await confirm(
+            `Are you sure you want to permanently delete the tournament "${t.name}"?`,
+            'Delete Tournament',
+            { confirmText: 'Delete', type: 'danger' }
+        );
+        if (isConfirmed) {
             try {
                 await tournamentService.delete(t.id);
-                alert('Tournament deleted successfully!');
+                success('Tournament deleted successfully!');
                 fetchTournaments();
-            } catch (error) {
-                alert('Delete failed: ' + (error.response?.data?.error || error.message));
-                console.error(error);
+            } catch (err) {
+                error('Delete failed: ' + (err.response?.data?.error || err.message));
+                console.error(err);
             }
         }
     };
@@ -226,6 +247,7 @@ const OrganizerPage = () => {
                         setGame('PUBG: Battlegrounds (PC)');
                         setCustomGame('');
                         setStatus('setup');
+                        setCompetitorType('players');
                         setShowModal(true);
                     }} 
                     style={{ background: 'linear-gradient(to right, #ff5500, #ff7f00)' }}
@@ -499,9 +521,76 @@ const OrganizerPage = () => {
                                 </div>
                             )}
 
+                            {/* Competitor Type Dropdown */}
+                            <div className="form-group" style={{ position: 'relative' }} ref={competitorTypeDropdownRef}>
+                                <label className="form-label">Competitor Type</label>
+                                <div 
+                                    onClick={() => setIsCompetitorTypeDropdownOpen(!isCompetitorTypeDropdownOpen)}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        background: 'rgba(0, 0, 0, 0.6)',
+                                        border: isCompetitorTypeDropdownOpen ? '1px solid var(--color-cyan)' : '1px solid var(--border-glass)',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        color: 'var(--text-main)',
+                                        fontSize: '1rem',
+                                        cursor: 'pointer',
+                                        boxShadow: isCompetitorTypeDropdownOpen ? '0 0 8px var(--color-cyan-glow)' : 'none',
+                                        transition: 'var(--transition-smooth)'
+                                    }}
+                                >
+                                    <span>{competitorTypeOptions.find(o => o.value === competitorType)?.label || competitorType}</span>
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: isCompetitorTypeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                {isCompetitorTypeDropdownOpen && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        marginTop: '6px',
+                                        background: '#0d0d0d',
+                                        border: '1px solid var(--border-glass-hover)',
+                                        borderRadius: '8px',
+                                        padding: '6px 0',
+                                        zIndex: 1000,
+                                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto'
+                                    }}>
+                                        {competitorTypeOptions.map((opt) => (
+                                            <div
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    setCompetitorType(opt.value);
+                                                    setIsCompetitorTypeDropdownOpen(false);
+                                                }}
+                                                style={{
+                                                    padding: '10px 16px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.95rem',
+                                                    color: competitorType === opt.value ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                    background: competitorType === opt.value ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                    fontWeight: competitorType === opt.value ? '700' : '400',
+                                                    transition: 'var(--transition-smooth)'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = competitorType === opt.value ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                 <div className="form-group" style={{ position: 'relative' }} ref={maxPlayersDropdownRef}>
-                                    <label className="form-label">Max Competitors</label>
+                                    <label className="form-label">{competitorType === 'teams' ? 'Max Teams' : 'Max Competitors'}</label>
                                     <div 
                                         onClick={() => setIsMaxPlayersDropdownOpen(!isMaxPlayersDropdownOpen)}
                                         style={{
@@ -519,7 +608,7 @@ const OrganizerPage = () => {
                                             transition: 'var(--transition-smooth)'
                                         }}
                                     >
-                                        <span>{maxPlayersOptions.find(o => String(o.value) === String(maxPlayers))?.label || `${maxPlayers} Players`}</span>
+                                        <span>{maxPlayersOptions.find(o => String(o.value) === String(maxPlayers))?.label.replace('Players', competitorType === 'teams' ? 'Teams' : 'Players') || `${maxPlayers} ${competitorType === 'teams' ? 'Teams' : 'Players'}`}</span>
                                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: isMaxPlayersDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
                                             <polyline points="6 9 12 15 18 9" />
                                         </svg>
@@ -559,7 +648,7 @@ const OrganizerPage = () => {
                                                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                                                     onMouseLeave={(e) => e.currentTarget.style.background = String(maxPlayers) === String(opt.value) ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
                                                 >
-                                                    {opt.label}
+                                                    {opt.label.replace('Players', competitorType === 'teams' ? 'Teams' : 'Players')}
                                                 </div>
                                             ))}
                                         </div>

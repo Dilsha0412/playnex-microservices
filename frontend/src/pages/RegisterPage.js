@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { userService } from '../services/api';
+import { useNotification } from '../context/NotificationContext';
 
 const RegisterPage = () => {
+    const { success, error, confirm } = useNotification();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     
@@ -19,8 +21,8 @@ const RegisterPage = () => {
             setLoading(true);
             const response = await userService.getAllUsers();
             setUsers(response.data || []);
-        } catch (error) {
-            console.error("Failed fetching users:", error);
+        } catch (err) {
+            console.error("Failed fetching users:", err);
             setUsers([]);
         } finally {
             setLoading(false);
@@ -36,7 +38,7 @@ const RegisterPage = () => {
         try {
             const payload = { username, email, password };
             await userService.register(payload);
-            alert(`🎉 Player "${username}" registered successfully!`);
+            success(`🎉 Player "${username}" registered successfully!`);
             
             // Reset form
             setUsername('');
@@ -45,51 +47,63 @@ const RegisterPage = () => {
             
             // Refresh list
             fetchUsers();
-        } catch (error) {
-            alert('Registration failed: ' + (error.response?.data?.error || error.message));
-            console.error(error);
+        } catch (err) {
+            error('Registration failed: ' + (err.response?.data?.error || err.message));
+            console.error(err);
         }
     };
 
     const handleSetActivePlayer = (id, name) => {
         if (id === activeOpponentId) {
-            alert("This player is already set as the Active Opponent. Choose another player or swap them.");
+            error("This player is already set as the Active Opponent. Choose another player or swap them.");
             return;
         }
         localStorage.setItem('playnex_userId', id);
         setActivePlayerId(id);
-        alert(`👤 "${name}" has been set as the Active Player.`);
-        // Reload to sync Navbar and other components immediately
-        window.location.reload();
+        success(`👤 "${name}" has been set as the Active Player.`);
+        // Reload slightly later to let user read the toast
+        setTimeout(() => {
+            window.location.reload();
+        }, 1200);
     };
 
     const handleSetActiveOpponent = (id, name) => {
         if (id === activePlayerId) {
-            alert("This player is already set as the Active Player. Choose another player or swap them.");
+            error("This player is already set as the Active Player. Choose another player or swap them.");
             return;
         }
         localStorage.setItem('playnex_opponentId', id);
         setActiveOpponentId(id);
-        alert(`👤 "${name}" has been set as the Active Opponent.`);
-        // Reload to sync Navbar and other components immediately
-        window.location.reload();
+        success(`👤 "${name}" has been set as the Active Opponent.`);
+        // Reload slightly later to let user read the toast
+        setTimeout(() => {
+            window.location.reload();
+        }, 1200);
     };
 
     const handleDeleteUser = async (id, name) => {
         if (id === activePlayerId || id === activeOpponentId) {
-            alert(`Cannot delete player "${name}" because they are currently set as the Active Player or Active Opponent in the active session.`);
+            error(`Cannot delete player "${name}" because they are currently set as the Active Player or Active Opponent in the active session.`);
             return;
         }
-        if (!window.confirm(`Are you sure you want to delete player "${name}"?`)) {
+        const isConfirmed = await confirm(
+            `Are you sure you want to permanently delete player "${name}"?`,
+            'Delete Player',
+            { confirmText: 'Delete', type: 'danger' }
+        );
+        if (!isConfirmed) {
             return;
         }
         try {
             await userService.deleteUser(id);
-            alert(`🗑️ Player "${name}" deleted successfully.`);
+            if (name === 'Dilsha Jayasekara' || name === 'Elife Yeon') {
+                localStorage.setItem(`playnex_deleted_default_${name}`, 'true');
+            }
+            success(`🗑️ Player "${name}" deleted successfully.`);
             fetchUsers();
-        } catch (error) {
-            alert('Delete failed: ' + (error.response?.data?.error || error.message));
-            console.error(error);
+        } catch (err) {
+            error('Delete failed: ' + (err.response?.data?.error || err.message));
+            console.error(err);
         }
     };
 

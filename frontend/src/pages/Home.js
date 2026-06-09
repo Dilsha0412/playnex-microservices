@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { tournamentService } from '../services/api';
+import { useNotification } from '../context/NotificationContext';
 
 const Home = () => {
+    const { success, error, info } = useNotification();
     const [popularLeagues, setPopularLeagues] = useState([]);
     const [upcomingList, setUpcomingList] = useState([]);
 
@@ -16,6 +18,7 @@ const Home = () => {
                 status: t.status || 'setup',
                 date: 'June 28, 2026',
                 prize: '$10,000',
+                competitorType: t.competitorType || 'players',
                 slots: `${t.players?.length || 0}/${t.maxPlayers || 16}`,
                 players: t.players?.length || 0,
                 image: t.game.toLowerCase().includes('pubg') ? 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400' :
@@ -46,23 +49,23 @@ const Home = () => {
     const handleJoinTournament = async (t) => {
         const userId = localStorage.getItem('playnex_userId');
         if (!userId) {
-            alert('You are currently in Guest Mode. Please select a player profile from the top-right corner of the Navbar to join tournaments!');
+            info('You are currently in Guest Mode. Please select a player profile from the top-right corner of the Navbar to join tournaments!');
             return;
         }
 
         try {
             // Register user to the tournament
             await tournamentService.join(t.id, userId);
-            alert(`🎉 Successfully joined "${t.title}"!`);
+            success(`🎉 Successfully joined "${t.title}"!`);
             
             // Reload
             loadTournaments();
-        } catch (error) {
-            if (error.response && error.response.data && error.response.data.error) {
-                alert(`Status: ${error.response.data.error}`);
+        } catch (err) {
+            if (err.response && err.response.data && err.response.data.error) {
+                error(`Status: ${err.response.data.error}`);
             } else {
-                console.error("Join failed:", error);
-                alert("Action failed. Verify that tournament-service is running.");
+                console.error("Join failed:", err);
+                error("Action failed. Verify that tournament-service is running.");
             }
         }
     };
@@ -221,11 +224,11 @@ const Home = () => {
                                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>{league.title}</h3>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                        <span>👥 {league.players} Players</span>
+                                        <span>👥 {league.players} {league.competitorType === 'teams' ? 'Teams' : 'Players'}</span>
                                         <span className="text-cyan">💰 {league.prize}</span>
                                     </div>
                                     <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', marginBottom: '10px', color: 'var(--text-muted)' }}>
-                                        <span>Slots Filled: {league.slots}</span>
+                                        <span>Slots Filled: {league.slots} {league.competitorType === 'teams' ? 'Teams' : 'Players'}</span>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
                                         <Link to={`/bracket/${league.id}`} className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.85rem', textAlign: 'center' }}>Details</Link>
