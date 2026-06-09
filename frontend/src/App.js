@@ -10,6 +10,7 @@ import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
 import ExternalGamePage from './pages/ExternalGamePage';
 import { userService } from './services/api';
+import { NotificationProvider } from './context/NotificationContext';
 
 function AppContent() {
   const location = useLocation();
@@ -65,7 +66,10 @@ function App() {
         let dilsha = usersResponse.data.find(u => u.username === 'Dilsha Jayasekara');
         let elife = usersResponse.data.find(u => u.username === 'Elife Yeon');
 
-        if (!dilsha) {
+        const isDilshaDeleted = localStorage.getItem('playnex_deleted_default_Dilsha Jayasekara') === 'true';
+        const isElifeDeleted = localStorage.getItem('playnex_deleted_default_Elife Yeon') === 'true';
+
+        if (!dilsha && !isDilshaDeleted) {
           console.log("🆕 Registering default profile: Dilsha Jayasekara...");
           await userService.register({
             username: 'Dilsha Jayasekara',
@@ -74,7 +78,7 @@ function App() {
           });
         }
         
-        if (!elife) {
+        if (!elife && !isElifeDeleted) {
           console.log("🆕 Registering default profile: Elife Yeon...");
           await userService.register({
             username: 'Elife Yeon',
@@ -83,7 +87,7 @@ function App() {
           });
         }
 
-        if (!dilsha || !elife) {
+        if ((!dilsha && !isDilshaDeleted) || (!elife && !isElifeDeleted)) {
           const reCheck = await userService.getAllUsers();
           dilsha = reCheck.data.find(u => u.username === 'Dilsha Jayasekara');
           elife = reCheck.data.find(u => u.username === 'Elife Yeon');
@@ -93,7 +97,7 @@ function App() {
         if (existingUserId && !currentUserId) {
           setCurrentUserId(existingUserId);
         }
-        if (elife) {
+        if (elife && !isElifeDeleted && !localStorage.getItem('playnex_opponentId')) {
           localStorage.setItem('playnex_opponentId', elife._id);
         }
       } catch (err) {
@@ -105,7 +109,9 @@ function App() {
 
   return (
     <Router>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </Router>
   );
 }
