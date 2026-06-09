@@ -8,7 +8,7 @@ const LandingPage = () => {
         position: 'relative',
         width: '100vw',
         height: '100vh',
-        background: '#000000', // Extra deep dark black background
+        background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.8) 100%), url("/landing_hero.png") center/cover no-repeat',
         color: '#ffffff',
         fontFamily: "var(--font-family)",
         overflow: 'hidden',
@@ -23,7 +23,7 @@ const LandingPage = () => {
         position: 'absolute',
         fontWeight: '900',
         color: '#ff5500', // Sleek orange color
-        opacity: '0.06', // Subtle background integration
+        opacity: '0.03', // Subtle background integration
         whiteSpace: 'nowrap',
         userSelect: 'none',
         pointerEvents: 'none',

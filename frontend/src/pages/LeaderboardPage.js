@@ -13,6 +13,20 @@ const LeaderboardPage = () => {
         return localStorage.getItem('playnex_last_played_game') || 'All Games';
     });
     const [gamesList, setGamesList] = useState([]);
+    const [isGameDropdownOpen, setIsGameDropdownOpen] = useState(false);
+    const gameDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (gameDropdownRef.current && !gameDropdownRef.current.contains(event.target)) {
+                setIsGameDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     useEffect(() => {
         const loadLeaderboardData = async () => {
@@ -136,31 +150,75 @@ const LeaderboardPage = () => {
                         </div>
 
                         <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            {/* Game Selector Dropdown */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Game:</span>
-                                <select
-                                    value={gameFilter}
-                                    onChange={(e) => setGameFilter(e.target.value)}
-                                    style={{
-                                        padding: '8px 16px',
-                                        background: 'rgba(0,0,0,0.3)',
-                                        color: '#fff',
-                                        border: '1px solid var(--border-glass)',
-                                        borderRadius: '10px',
-                                        fontWeight: '700',
-                                        cursor: 'pointer',
-                                        outline: 'none',
-                                        transition: 'var(--transition-smooth)'
-                                    }}
-                                >
-                                    {gamesList.map(g => (
-                                        <option key={g} value={g} style={{ background: '#0c0822', color: '#fff' }}>
-                                            {g}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                             {/* Game Selector Dropdown */}
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Game:</span>
+                                 <div style={{ position: 'relative', minWidth: '220px' }} ref={gameDropdownRef}>
+                                     <div 
+                                         onClick={() => setIsGameDropdownOpen(!isGameDropdownOpen)}
+                                         style={{
+                                             padding: '8px 16px',
+                                             background: '#0d0d0d',
+                                             color: '#fff',
+                                             border: '1px solid var(--border-glass)',
+                                             borderRadius: '10px',
+                                             fontWeight: '700',
+                                             cursor: 'pointer',
+                                             display: 'flex',
+                                             justifyContent: 'space-between',
+                                             alignItems: 'center',
+                                             fontSize: '0.9rem',
+                                             transition: 'var(--transition-smooth)'
+                                         }}
+                                     >
+                                         <span>{gameFilter}</span>
+                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: isGameDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                             <polyline points="6 9 12 15 18 9" />
+                                         </svg>
+                                     </div>
+                                     
+                                     {isGameDropdownOpen && (
+                                         <div style={{
+                                             position: 'absolute',
+                                             top: '100%',
+                                             left: 0,
+                                             right: 0,
+                                             marginTop: '6px',
+                                             background: '#0d0d0d',
+                                             border: '1px solid var(--border-glass-hover)',
+                                             borderRadius: '8px',
+                                             padding: '6px 0',
+                                             zIndex: 1000,
+                                             boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                             maxHeight: '200px',
+                                             overflowY: 'auto'
+                                         }}>
+                                             {gamesList.map((g) => (
+                                                 <div
+                                                     key={g}
+                                                     onClick={() => {
+                                                         setGameFilter(g);
+                                                         setIsGameDropdownOpen(false);
+                                                     }}
+                                                     style={{
+                                                         padding: '10px 16px',
+                                                         cursor: 'pointer',
+                                                         fontSize: '0.9rem',
+                                                         color: gameFilter === g ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                         background: gameFilter === g ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                         fontWeight: gameFilter === g ? '700' : '400',
+                                                         transition: 'var(--transition-smooth)'
+                                                     }}
+                                                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                     onMouseLeave={(e) => e.currentTarget.style.background = gameFilter === g ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                                 >
+                                                     {g}
+                                                 </div>
+                                             ))}
+                                         </div>
+                                     )}
+                                 </div>
+                             </div>
 
                             {/* Tab Filter */}
                             <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-glass)' }}>
@@ -193,9 +251,9 @@ const LeaderboardPage = () => {
                         <div style={podiumBlockStyle}>
                             {sortedPodium.map((player) => {
                                 const height = player.rank === 1 ? '160px' : player.rank === 2 ? '120px' : '100px';
-                                const columnColor = player.rank === 1 ? 'linear-gradient(to top, #ff9f1c, #ffe169)' :
-                                    player.rank === 2 ? 'linear-gradient(to top, #7b2cbf, #9d4edd)' :
-                                        'linear-gradient(to top, #2ec4b6, #00f5d4)';
+                                const columnColor = player.rank === 1 ? 'linear-gradient(to top, #ff8800, #ffcc00)' :
+                                    player.rank === 2 ? 'linear-gradient(to top, #777777, #cccccc)' :
+                                        'linear-gradient(to top, #8c4f2b, #cd7f32)';
                                 const scaleClass = player.rank === 1 ? 'float-anim' : '';
 
                                 return (
@@ -218,7 +276,7 @@ const LeaderboardPage = () => {
                                                 bottom: '-5px',
                                                 left: '50%',
                                                 transform: 'translateX(-50%)',
-                                                background: '#0c0822',
+                                                background: '#000000',
                                                 border: '1px solid var(--border-glass)',
                                                 borderRadius: '50%',
                                                 width: '24px',

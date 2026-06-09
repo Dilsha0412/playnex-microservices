@@ -2,10 +2,10 @@ const leaderboardService = require('../services/leaderboardService');
 
 // Update leaderboard
 exports.updateLeaderboard = async (req, res) => {
-    const { winnerId, loserId } = req.body;
+    const { winnerId, loserId, game } = req.body;
 
     try {
-        const result = await leaderboardService.updateLeaderboard(winnerId, loserId);
+        const result = await leaderboardService.updateLeaderboard(winnerId, loserId, game);
         res.json(result);
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -15,7 +15,8 @@ exports.updateLeaderboard = async (req, res) => {
 // Get leaderboard
 exports.getLeaderboard = async (req, res) => {
     try {
-        const data = await leaderboardService.getLeaderboard();
+        const { game } = req.query;
+        const data = await leaderboardService.getLeaderboard(game);
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -24,9 +25,20 @@ exports.getLeaderboard = async (req, res) => {
 
 // Add raw score
 exports.addScore = async (req, res) => {
-    const { userId, score } = req.body;
+    const { userId, score, game } = req.body;
     try {
-        const result = await leaderboardService.addScore(userId, score);
+        const result = await leaderboardService.addScore(userId, score, game);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+// Tournament completed standings sync
+exports.tournamentCompleted = async (req, res) => {
+    const { game, standings } = req.body;
+    try {
+        const result = await leaderboardService.updateTournamentStandings(game, standings);
         res.json(result);
     } catch (error) {
         res.status(400).json({ error: error.message });
