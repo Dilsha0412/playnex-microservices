@@ -1,8 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { tournamentService, matchService, userService } from '../services/api';
+import { tournamentService, matchService, userService, leaderboardService } from '../services/api';
+import { useNotification } from '../context/NotificationContext';
+
+const getTelemetryId = (gameName) => {
+    if (!gameName) return 'MATCH_94829103';
+    const prefix = gameName
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '_')
+        .replace(/__+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    return `${prefix || 'GAME'}_MATCH_94829103`;
+};
 
 const BracketPage = () => {
+    const { success, error, info } = useNotification();
     const { gameId } = useParams();
     const [activeTab, setActiveTab] = useState('bracket');
     const [selectedStage, setSelectedStage] = useState('winners');
@@ -17,19 +29,21 @@ const BracketPage = () => {
     const [apiLogs, setApiLogs] = useState([]);
     const [simulatedWinner, setSimulatedWinner] = useState(null); // 'A' or 'B'
     const [simulatedStats, setSimulatedStats] = useState(null);
+    const [dbMatches, setDbMatches] = useState([]);
 
     // Quick Add Player States
     const [selectedQuickAddUser, setSelectedQuickAddUser] = useState('');
     const [allUsers, setAllUsers] = useState([]);
+    const [isQuickAddDropdownOpen, setIsQuickAddDropdownOpen] = useState(false);
+    const quickAddDropdownRef = useRef(null);
 
     // Dynamic Bracket data (Stateful so we can update scores on click)
     const [roundOf16Matches, setRoundOf16Matches] = useState([]);
     const [quarterMatches, setQuarterMatches] = useState([]);
     const [semiMatches, setSemiMatches] = useState([]);
     const [finalMatches, setFinalMatches] = useState([]);
+    const [losersMatches, setLosersMatches] = useState([]);
     const [scheduleMatches, setScheduleMatches] = useState([]);
-
-    const thirdPlaceMatch = { teamA: 'TBD', teamB: 'TBD', scoreA: null, scoreB: null };
 
     const fetchDetails = async () => {
         try {
@@ -59,6 +73,16 @@ const BracketPage = () => {
             // Fetch all users for quick registration selector
             const usersRes = await userService.getAllUsers().catch(() => ({ data: [] }));
             setAllUsers(usersRes.data || []);
+
+            // Fetch completed matches from database
+            if (gameId && gameId !== 'csgo') {
+                try {
+                    const matchesRes = await matchService.getTournamentMatches(gameId);
+                    setDbMatches(matchesRes.data || []);
+                } catch (err) {
+                    console.error("Failed fetching completed matches for tournament:", err.message);
+                }
+            }
         } catch (err) {
             console.error("Failed loading tournament details:", err.message);
         }
@@ -68,6 +92,18 @@ const BracketPage = () => {
         fetchDetails();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameId]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (quickAddDropdownRef.current && !quickAddDropdownRef.current.contains(event.target)) {
+                setIsQuickAddDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Dynamically initialize the playoff bracket tree based on database tournament players list
     useEffect(() => {
@@ -79,10 +115,17 @@ const BracketPage = () => {
         };
 
         const max = parseInt(tournament.maxPlayers, 10) || 16;
+        const bracketSize = max <= 2 ? 2 : max <= 4 ? 4 : max <= 8 ? 8 : 16;
         const playersList = tournament.players || [];
         const names = [];
-        for (let i = 0; i < max; i++) {
-            names.push(playersList[i] ? getPlayerName(playersList[i]) : 'TBD');
+        for (let i = 0; i < bracketSize; i++) {
+            if (i < playersList.length) {
+                names.push(getPlayerName(playersList[i]));
+            } else if (i < max) {
+                names.push('TBD'); // Waiting for real players to join
+            } else {
+                names.push(`Bot ${i + 1}`); // Pad remaining bracket slots
+            }
         }
 
         // Reset all rounds
@@ -138,37 +181,202 @@ const BracketPage = () => {
             ];
         }
 
-        let schedule = [];
-        if (max === 2) {
-            schedule = [
-                { stage: 'Final', teamA: names[0], scoreA: null, teamB: names[1], scoreB: null, status: 'Upcoming', matchIndex: 15 }
-            ];
-        } else if (max === 4) {
-            schedule = [
-                { stage: 'Semi Final (Match 1)', teamA: names[0], scoreA: null, teamB: names[1], scoreB: null, status: 'Upcoming', matchIndex: 13 },
-                { stage: 'Semi Final (Match 2)', teamA: names[2], scoreA: null, teamB: names[3], scoreB: null, status: 'Upcoming', matchIndex: 14 },
-                { stage: 'Final', teamA: 'TBD', scoreA: null, teamB: 'TBD', scoreB: null, status: 'Upcoming', matchIndex: 15 }
-            ];
-        } else {
-            schedule = [
-                { stage: 'Round of 16 (Match 1)', teamA: names[0], scoreA: null, teamB: names[1], scoreB: null, status: 'Upcoming', matchIndex: 1 },
-                { stage: 'Quarter Final', teamA: 'TBD', scoreA: null, teamB: 'TBD', scoreB: null, status: 'Upcoming', matchIndex: 9 },
-                { stage: 'Semi Final', teamA: 'TBD', scoreA: null, teamB: 'TBD', scoreB: null, status: 'Upcoming', matchIndex: 13 },
-                { stage: 'Final', teamA: 'TBD', scoreA: null, teamB: 'TBD', scoreB: null, status: 'Upcoming', matchIndex: 15 }
-            ];
+        // Helper to resolve player IDs
+        const getPlayerId = (teamName) => {
+            if (!teamName || teamName === 'TBD') return null;
+            if (teamName.startsWith('Bot ')) {
+                return `bot_${teamName.replace(/\s+/g, '')}`;
+            }
+            const u = allUsers.find(user => user.username === teamName);
+            return u ? u._id : null;
+        };
+
+        // Helper to check if a match is saved in dbMatches and update it
+        const resolveMatch = (m) => {
+            if (m.teamA === 'TBD' || m.teamB === 'TBD') return m;
+            const pA = getPlayerId(m.teamA);
+            const pB = getPlayerId(m.teamB);
+            if (!pA || !pB) return m;
+
+            const dbMatch = dbMatches.find(dm => {
+                if (dm.status !== 'completed') return false;
+                if (dm.matchIndex !== undefined && dm.matchIndex !== null) {
+                    return dm.matchIndex === m.id;
+                }
+                return dm.players.includes(pA) && dm.players.includes(pB);
+            });
+
+            if (dbMatch) {
+                const winnerName = dbMatch.winner === pA ? m.teamA : m.teamB;
+                return {
+                    ...m,
+                    scoreA: dbMatch.winner === pA ? 16 : 10,
+                    scoreB: dbMatch.winner === pB ? 16 : 10,
+                    winner: winnerName
+                };
+            }
+            return m;
+        };
+
+        // Resolve Round of 16 (only if max >= 16)
+        if (max >= 16) {
+            r16 = r16.map(resolveMatch);
+            // Advance winners to quarters
+            r16.forEach(m => {
+                if (m.winner) {
+                    const nextMatchId = Math.ceil(m.id / 2) + 8;
+                    const isTeamA = m.id % 2 !== 0;
+                    const qIdx = quarters.findIndex(q => q.id === nextMatchId);
+                    if (qIdx !== -1) {
+                        if (isTeamA) quarters[qIdx].teamA = m.winner;
+                        else quarters[qIdx].teamB = m.winner;
+                    }
+                }
+            });
         }
+
+        // Resolve Quarters (if max >= 8)
+        if (max >= 8) {
+            quarters = quarters.map(resolveMatch);
+            // Advance winners to semis
+            quarters.forEach(m => {
+                if (m.winner) {
+                    const nextMatchId = Math.ceil((m.id - 8) / 2) + 12;
+                    const isTeamA = m.id % 2 !== 0;
+                    const sIdx = semis.findIndex(s => s.id === nextMatchId);
+                    if (sIdx !== -1) {
+                        if (isTeamA) semis[sIdx].teamA = m.winner;
+                        else semis[sIdx].teamB = m.winner;
+                    }
+                }
+            });
+        }
+
+        // Resolve Semis (if max >= 4)
+        if (max >= 4) {
+            semis = semis.map(resolveMatch);
+            // Advance winners to final
+            semis.forEach(m => {
+                if (m.winner) {
+                    const nextMatchId = 15;
+                    const isTeamA = m.id === 13;
+                    const fIdx = finals.findIndex(f => f.id === nextMatchId);
+                    if (fIdx !== -1) {
+                        if (isTeamA) finals[fIdx].teamA = m.winner;
+                        else finals[fIdx].teamB = m.winner;
+                    }
+                }
+            });
+        }
+
+        // Resolve Finals
+        finals = finals.map(resolveMatch);
+
+        // Construct and resolve losers matches
+        let losers = [];
+        const getLoser = (m) => {
+            if (!m || !m.winner || m.winner === 'TBD') return 'TBD';
+            return m.winner === m.teamA ? m.teamB : m.teamA;
+        };
+
+        if (max === 4) {
+            let m21 = { id: 21, teamA: getLoser(semis[0]), teamB: getLoser(semis[1]), scoreA: null, scoreB: null, winner: null };
+            m21 = resolveMatch(m21);
+            losers = [m21];
+        } else if (max === 8) {
+            let m21 = { id: 21, teamA: getLoser(quarters[0]), teamB: getLoser(quarters[1]), scoreA: null, scoreB: null, winner: null };
+            let m22 = { id: 22, teamA: getLoser(quarters[2]), teamB: getLoser(quarters[3]), scoreA: null, scoreB: null, winner: null };
+            m21 = resolveMatch(m21);
+            m22 = resolveMatch(m22);
+
+            let m23 = { id: 23, teamA: m21.winner || 'TBD', teamB: getLoser(semis[1]), scoreA: null, scoreB: null, winner: null };
+            let m24 = { id: 24, teamA: m22.winner || 'TBD', teamB: getLoser(semis[0]), scoreA: null, scoreB: null, winner: null };
+            m23 = resolveMatch(m23);
+            m24 = resolveMatch(m24);
+
+            let m25 = { id: 25, teamA: m23.winner || 'TBD', teamB: m24.winner || 'TBD', scoreA: null, scoreB: null, winner: null };
+            m25 = resolveMatch(m25);
+
+            losers = [m21, m22, m23, m24, m25];
+        }
+
+        const schedule = [];
+        if (max === 2) {
+            const m15 = finals[0];
+            schedule.push({
+                stage: 'Final',
+                teamA: m15.teamA,
+                scoreA: m15.scoreA,
+                teamB: m15.teamB,
+                scoreB: m15.scoreB,
+                status: m15.winner ? 'Completed' : 'Upcoming',
+                matchIndex: 15
+            });
+        } else if (max === 4) {
+            const m13 = semis[0];
+            const m14 = semis[1];
+            const m15 = finals[0];
+            schedule.push(
+                { stage: 'Semi Final (Match 1)', teamA: m13.teamA, scoreA: m13.scoreA, teamB: m13.teamB, scoreB: m13.scoreB, status: m13.winner ? 'Completed' : 'Upcoming', matchIndex: 13 },
+                { stage: 'Semi Final (Match 2)', teamA: m14.teamA, scoreA: m14.scoreA, teamB: m14.teamB, scoreB: m14.scoreB, status: m14.winner ? 'Completed' : 'Upcoming', matchIndex: 14 },
+                { stage: 'Final', teamA: m15.teamA, scoreA: m15.scoreA, teamB: m15.teamB, scoreB: m15.scoreB, status: m15.winner ? 'Completed' : 'Upcoming', matchIndex: 15 }
+            );
+        } else if (max === 8) {
+            quarters.forEach((q, idx) => {
+                schedule.push({ stage: `Quarter Final (Match ${idx + 1})`, teamA: q.teamA, scoreA: q.scoreA, teamB: q.teamB, scoreB: q.scoreB, status: q.winner ? 'Completed' : 'Upcoming', matchIndex: q.id });
+            });
+            semis.forEach((s, idx) => {
+                schedule.push({ stage: `Semi Final (Match ${idx + 1})`, teamA: s.teamA, scoreA: s.scoreA, teamB: s.teamB, scoreB: s.scoreB, status: s.winner ? 'Completed' : 'Upcoming', matchIndex: s.id });
+            });
+            const m15 = finals[0];
+            schedule.push({ stage: 'Final', teamA: m15.teamA, scoreA: m15.scoreA, teamB: m15.teamB, scoreB: m15.scoreB, status: m15.winner ? 'Completed' : 'Upcoming', matchIndex: 15 });
+        } else {
+            r16.forEach((r, idx) => {
+                schedule.push({ stage: `Round of 16 (Match ${idx + 1})`, teamA: r.teamA, scoreA: r.scoreA, teamB: r.teamB, scoreB: r.scoreB, status: r.winner ? 'Completed' : 'Upcoming', matchIndex: r.id });
+            });
+            quarters.forEach((q, idx) => {
+                schedule.push({ stage: `Quarter Final (Match ${idx + 1})`, teamA: q.teamA, scoreA: q.scoreA, teamB: q.teamB, scoreB: q.scoreB, status: q.winner ? 'Completed' : 'Upcoming', matchIndex: q.id });
+            });
+            semis.forEach((s, idx) => {
+                schedule.push({ stage: `Semi Final (Match ${idx + 1})`, teamA: s.teamA, scoreA: s.scoreA, teamB: s.teamB, scoreB: s.scoreB, status: s.winner ? 'Completed' : 'Upcoming', matchIndex: s.id });
+            });
+            const m15 = finals[0];
+            schedule.push({ stage: 'Final', teamA: m15.teamA, scoreA: m15.scoreA, teamB: m15.teamB, scoreB: m15.scoreB, status: m15.winner ? 'Completed' : 'Upcoming', matchIndex: 15 });
+        }
+
+        // Add losers matches to schedule
+        losers.forEach(lm => {
+            let stageName = '';
+            if (max === 4) {
+                stageName = 'Losers Final (3rd Place Playoff)';
+            } else if (max === 8) {
+                if (lm.id === 21 || lm.id === 22) stageName = `Losers Round 1 (Match ${lm.id - 20})`;
+                else if (lm.id === 23 || lm.id === 24) stageName = `Losers Round 2 (Match ${lm.id - 22})`;
+                else if (lm.id === 25) stageName = 'Losers Final (3rd Place Playoff)';
+            }
+            schedule.push({
+                stage: stageName,
+                teamA: lm.teamA,
+                scoreA: lm.scoreA,
+                teamB: lm.teamB,
+                scoreB: lm.scoreB,
+                status: lm.winner ? 'Completed' : 'Upcoming',
+                matchIndex: lm.id
+            });
+        });
 
         setRoundOf16Matches(r16);
         setQuarterMatches(quarters);
         setSemiMatches(semis);
         setFinalMatches(finals);
+        setLosersMatches(losers);
         setScheduleMatches(schedule);
-    }, [tournament, allUsers]);
+    }, [tournament, allUsers, dbMatches]);
 
     const handleJoinTournament = async () => {
         const userId = localStorage.getItem('playnex_userId');
         if (!userId) {
-            alert("You are currently in Guest Mode. Please select a player profile from the top-right corner of the Navbar to join tournaments!");
+            info("You are currently in Guest Mode. Please select a player profile from the top-right corner of the Navbar to join tournaments!");
             return;
         }
 
@@ -194,7 +402,7 @@ const BracketPage = () => {
             }
 
             await tournamentService.join(targetId, userId);
-            alert("🎉 You successfully registered for this tournament!");
+            success("🎉 You successfully registered for this tournament!");
 
             if (gameId === 'csgo') {
                 window.location.href = `/bracket/${targetId}`;
@@ -203,48 +411,59 @@ const BracketPage = () => {
             }
         } catch (err) {
             if (err.response && err.response.data && err.response.data.error) {
-                alert(`Status: ${err.response.data.error}`);
+                error(`Status: ${err.response.data.error}`);
             } else {
                 console.error(err);
-                alert("Action failed. Make sure tournament-service backend is running.");
+                error("Action failed. Make sure tournament-service backend is running.");
             }
         }
     };
 
     const handleQuickAddPlayer = async () => {
         if (!selectedQuickAddUser || !tournament) return;
+        const label = tournament.competitorType === 'teams' ? 'Team' : 'Player';
         try {
             await tournamentService.join(tournament._id, selectedQuickAddUser);
-            alert("🎉 Player successfully added to the tournament!");
+            success(`🎉 ${label} successfully added to the tournament!`);
             setSelectedQuickAddUser('');
             fetchDetails();
-        } catch (error) {
-            alert("Failed adding player: " + (error.response?.data?.error || error.message));
+        } catch (err) {
+            error(`Failed adding ${label.toLowerCase()}: ` + (err.response?.data?.error || err.message));
         }
     };
 
     // Trigger match resolution modal (Match Integration Hub)
     const handleSimulateMatch = (matchIdLocal, matchStage, teamA, teamB) => {
         if (gameId === 'csgo' || !tournament) {
-            alert("Please Register/Join the tournament first to save it to the DB before playing matches!");
+            info("Please Register/Join the tournament first to save it to the DB before playing matches!");
             return;
         }
 
         if (teamA === 'TBD' || teamB === 'TBD') {
-            alert("Cannot simulate match with TBD players!");
+            error("Cannot simulate match with TBD players!");
             return;
         }
 
-        const playerAUser = allUsers.find(u => u.username === teamA);
-        const playerBUser = allUsers.find(u => u.username === teamB);
-        
-        if (!playerAUser || !playerBUser) {
-            alert(`Could not resolve player profiles. Both players (${teamA} and ${teamB}) must be registered and match database users exactly to sync results.`);
-            return;
+        let playerAId = `bot_${teamA.replace(/\s+/g, '')}`;
+        let playerBId = `bot_${teamB.replace(/\s+/g, '')}`;
+
+        if (!teamA.startsWith('Bot ')) {
+            const playerAUser = allUsers.find(u => u.username === teamA);
+            if (!playerAUser) {
+                error(`Could not resolve profile for ${teamA}. Real players must be registered to sync results.`);
+                return;
+            }
+            playerAId = playerAUser._id;
         }
-        
-        const playerAId = playerAUser._id;
-        const playerBId = playerBUser._id;
+
+        if (!teamB.startsWith('Bot ')) {
+            const playerBUser = allUsers.find(u => u.username === teamB);
+            if (!playerBUser) {
+                error(`Could not resolve profile for ${teamB}. Real players must be registered to sync results.`);
+                return;
+            }
+            playerBId = playerBUser._id;
+        }
         
         // Open the Match Integration Hub simulator modal
         setApiModalData({ 
@@ -267,9 +486,11 @@ const BracketPage = () => {
         setApiLogs([]);
         setSimulatedWinner(scenario);
 
+        const telemetryId = getTelemetryId(tournament?.game);
+
         const logs = [
             "🔄 Establishing connection to game developer portal API...",
-            "📡 Requesting telemetry files for session: MATCH_ID_94829103...",
+            `📡 Requesting telemetry files for session: ${telemetryId}...`,
             "🗄️ Downloading compressed telemetry file (Size: 4.2 MB)...",
             "🛠️ Parsing combat log metrics and position coordinates...",
             `📊 Verifying player handles: ${apiModalData.teamA.replace(/\s+/g, '')}_PlayNex & ${apiModalData.teamB.replace(/\s+/g, '')}_PlayNex...`,
@@ -328,7 +549,8 @@ const BracketPage = () => {
             const matchRes = await matchService.create({
                 tournamentId: gameId,
                 players: [playerAId, playerBId],
-                status: 'pending'
+                status: 'pending',
+                matchIndex: matchIdLocal
             });
 
             const matchDbId = matchRes.data._id;
@@ -336,10 +558,16 @@ const BracketPage = () => {
             // 2. Submit winner to match service
             await matchService.addResult(matchDbId, winnerId);
 
-            alert(`🏆 Match synced! Winner: ${simulatedWinner === 'A' ? teamA : teamB}. Stats and leaderboard points successfully updated.`);
+            success(`🏆 Match synced! Winner: ${simulatedWinner === 'A' ? teamA : teamB}. Stats and leaderboard points successfully updated.`);
+
+            if (tournament && tournament.game) {
+                localStorage.setItem('playnex_last_played_game', tournament.game);
+            }
 
             const scoreWin = 16;
             const scoreLose = 10;
+
+            const actualWinnerName = simulatedWinner === 'A' ? teamA : teamB;
 
             // 3. Update scores inside react state to reflect results in real-time
             if (matchIdLocal <= 8) {
@@ -347,29 +575,127 @@ const BracketPage = () => {
                     ...m,
                     scoreA: simulatedWinner === 'A' ? scoreWin : scoreLose,
                     scoreB: simulatedWinner === 'B' ? scoreWin : scoreLose,
-                    winner: simulatedWinner === 'A' ? teamA : teamB
+                    winner: actualWinnerName
                 } : m));
+
+                // Advance winner to Quarter Finals (Matches 9-12)
+                const nextMatchId = Math.ceil(matchIdLocal / 2) + 8;
+                const isTeamA = matchIdLocal % 2 !== 0;
+                setQuarterMatches(prev => prev.map(m => m.id === nextMatchId ? {
+                    ...m,
+                    teamA: isTeamA ? actualWinnerName : m.teamA,
+                    teamB: !isTeamA ? actualWinnerName : m.teamB
+                } : m));
+                setScheduleMatches(prev => prev.map(m => m.matchIndex === nextMatchId ? {
+                    ...m,
+                    teamA: isTeamA ? actualWinnerName : m.teamA,
+                    teamB: !isTeamA ? actualWinnerName : m.teamB
+                } : m));
+
             } else if (matchIdLocal <= 12) {
                 setQuarterMatches(prev => prev.map(m => m.id === matchIdLocal ? {
                     ...m,
                     scoreA: simulatedWinner === 'A' ? scoreWin : scoreLose,
                     scoreB: simulatedWinner === 'B' ? scoreWin : scoreLose,
-                    winner: simulatedWinner === 'A' ? teamA : teamB
+                    winner: actualWinnerName
                 } : m));
+
+                // Advance winner to Semi Finals (Matches 13-14)
+                const nextMatchId = Math.ceil((matchIdLocal - 8) / 2) + 12;
+                const isTeamA = matchIdLocal % 2 !== 0; // 9,11 is odd -> teamA. 10,12 is even -> teamB
+                setSemiMatches(prev => prev.map(m => m.id === nextMatchId ? {
+                    ...m,
+                    teamA: isTeamA ? actualWinnerName : m.teamA,
+                    teamB: !isTeamA ? actualWinnerName : m.teamB
+                } : m));
+                setScheduleMatches(prev => prev.map(m => m.matchIndex === nextMatchId ? {
+                    ...m,
+                    teamA: isTeamA ? actualWinnerName : m.teamA,
+                    teamB: !isTeamA ? actualWinnerName : m.teamB
+                } : m));
+
             } else if (matchIdLocal <= 14) {
                 setSemiMatches(prev => prev.map(m => m.id === matchIdLocal ? {
                     ...m,
                     scoreA: simulatedWinner === 'A' ? scoreWin : scoreLose,
                     scoreB: simulatedWinner === 'B' ? scoreWin : scoreLose,
-                    winner: simulatedWinner === 'A' ? teamA : teamB
+                    winner: actualWinnerName
                 } : m));
+
+                // Advance winner to Final (Match 15)
+                const nextMatchId = 15;
+                const isTeamA = matchIdLocal === 13;
+                setFinalMatches(prev => prev.map(m => m.id === nextMatchId ? {
+                    ...m,
+                    teamA: isTeamA ? actualWinnerName : m.teamA,
+                    teamB: !isTeamA ? actualWinnerName : m.teamB
+                } : m));
+                setScheduleMatches(prev => prev.map(m => m.matchIndex === nextMatchId ? {
+                    ...m,
+                    teamA: isTeamA ? actualWinnerName : m.teamA,
+                    teamB: !isTeamA ? actualWinnerName : m.teamB
+                } : m));
+
             } else if (matchIdLocal === 15) {
                 setFinalMatches(prev => prev.map(m => m.id === matchIdLocal ? {
                     ...m,
                     scoreA: simulatedWinner === 'A' ? scoreWin : scoreLose,
                     scoreB: simulatedWinner === 'B' ? scoreWin : scoreLose,
-                    winner: simulatedWinner === 'A' ? teamA : teamB
+                    winner: actualWinnerName
                 } : m));
+            } else if (matchIdLocal >= 21 && matchIdLocal <= 25) {
+                setLosersMatches(prev => prev.map(m => m.id === matchIdLocal ? {
+                    ...m,
+                    scoreA: simulatedWinner === 'A' ? scoreWin : scoreLose,
+                    scoreB: simulatedWinner === 'B' ? scoreWin : scoreLose,
+                    winner: actualWinnerName
+                } : m));
+            }
+
+            // Automatically set tournament status to completed in DB when the final match is completed
+            const isTournamentFinished = (() => {
+                if (maxPlayersVal === 2 && matchIdLocal === 15) return true;
+                if (maxPlayersVal === 4 && (matchIdLocal === 15 || matchIdLocal === 21)) {
+                    const has15 = dbMatches.some(dm => dm.matchIndex === 15 || dm.winner) || matchIdLocal === 15;
+                    const has21 = dbMatches.some(dm => dm.matchIndex === 21) || matchIdLocal === 21;
+                    return has15 && has21;
+                }
+                if (maxPlayersVal === 8 && (matchIdLocal === 15 || matchIdLocal === 25)) {
+                    const has15 = dbMatches.some(dm => dm.matchIndex === 15) || matchIdLocal === 15;
+                    const has25 = dbMatches.some(dm => dm.matchIndex === 25) || matchIdLocal === 25;
+                    return has15 && has25;
+                }
+                if (maxPlayersVal === 16 && matchIdLocal === 15) return true;
+                return false;
+            })();
+
+            if (isTournamentFinished) {
+                try {
+                    await tournamentService.update(gameId, { status: 'completed' });
+                    console.log("🏆 Tournament status auto-updated to completed in DB!");
+
+                    // Compute final standings using latest matches
+                    const finalStandings = generateStandings(
+                        matchIdLocal === 15 ? finalMatches.map(m => m.id === 15 ? { ...m, winner: actualWinnerName } : m) : finalMatches,
+                        (matchIdLocal >= 21 && matchIdLocal <= 25) ? losersMatches.map(m => m.id === matchIdLocal ? { ...m, winner: actualWinnerName } : m) : losersMatches
+                    );
+
+                    const standingsPayload = finalStandings.map(s => {
+                        const user = allUsers.find(u => u.username === s.team);
+                        return {
+                            userId: user ? user._id : null,
+                            rank: s.rank
+                        };
+                    }).filter(p => p.userId);
+
+                    await leaderboardService.submitTournamentStandings({
+                        game: tournament ? tournament.game : 'General',
+                        standings: standingsPayload
+                    });
+                    console.log("🚀 Leaderboard final standings synchronized successfully!");
+                } catch (updateErr) {
+                    console.error("Failed auto-updating tournament status/leaderboard:", updateErr.message);
+                }
             }
 
             // Also update scheduleMatches in state
@@ -387,9 +713,12 @@ const BracketPage = () => {
             setApiLogs([]);
             setSimulatedWinner(null);
             setSimulatedStats(null);
+
+            // Fetch new details to reload matches from backend
+            fetchDetails();
         } catch (err) {
             console.error("Match sync failed:", err.message);
-            alert("Action failed. Make sure match-service and leaderboard-service are running.");
+            error("Action failed. Make sure match-service and leaderboard-service are running.");
         }
     };
 
@@ -399,6 +728,133 @@ const BracketPage = () => {
 
     const maxPlayersVal = tournament ? (parseInt(tournament.maxPlayers, 10) || 16) : 16;
     const minWidthVal = maxPlayersVal === 2 ? '300px' : maxPlayersVal === 4 ? '600px' : maxPlayersVal === 8 ? '800px' : '1000px';
+
+    // Generate Standings Data dynamically based on match states
+    const generateStandings = (customFinal = null, customLosers = null) => {
+        const stats = {};
+        const allPlayedMatches = [
+            ...roundOf16Matches,
+            ...quarterMatches,
+            ...semiMatches,
+            ...(customFinal || finalMatches),
+            ...(customLosers || losersMatches)
+        ];
+        
+        allPlayedMatches.forEach(m => {
+            if (m.winner) {
+                // Team A
+                if (m.teamA && m.teamA !== 'TBD') {
+                    if (!stats[m.teamA]) stats[m.teamA] = { team: m.teamA, mp: 0, w: 0, l: 0 };
+                    stats[m.teamA].mp += 1;
+                    if (m.winner === m.teamA) stats[m.teamA].w += 1;
+                    else stats[m.teamA].l += 1;
+                }
+                // Team B
+                if (m.teamB && m.teamB !== 'TBD') {
+                    if (!stats[m.teamB]) stats[m.teamB] = { team: m.teamB, mp: 0, w: 0, l: 0 };
+                    stats[m.teamB].mp += 1;
+                    if (m.winner === m.teamB) stats[m.teamB].w += 1;
+                    else stats[m.teamB].l += 1;
+                }
+            }
+        });
+
+        // Add registered players who haven't played yet
+        if (tournament && tournament.players) {
+            tournament.players.forEach(pid => {
+                const u = allUsers.find(user => user._id === pid);
+                const uname = u ? u.username : `Player_${pid.slice(-4)}`;
+                if (!stats[uname]) {
+                    stats[uname] = { team: uname, mp: 0, w: 0, l: 0 };
+                }
+            });
+        }
+
+        // Determine exact positions based on double-elimination bracket progression
+        const positions = {};
+
+        const m15 = finalMatches.find(f => f.id === 15);
+        const m25 = losersMatches.find(l => l.id === 25);
+        const m24 = losersMatches.find(l => l.id === 24);
+        const m23 = losersMatches.find(l => l.id === 23);
+        const m22 = losersMatches.find(l => l.id === 22);
+        const m21 = losersMatches.find(l => l.id === 21);
+
+        if (maxPlayersVal === 8) {
+            // Rank 1 & 2
+            if (m15 && m15.winner && m15.winner !== 'TBD') {
+                positions[m15.winner] = 1;
+                const loser15 = m15.winner === m15.teamA ? m15.teamB : m15.teamA;
+                if (loser15 && loser15 !== 'TBD') positions[loser15] = 2;
+            }
+
+            // Rank 3 & 4
+            if (m25 && m25.winner && m25.winner !== 'TBD') {
+                positions[m25.winner] = 3;
+                const loser25 = m25.winner === m25.teamA ? m25.teamB : m25.teamA;
+                if (loser25 && loser25 !== 'TBD') positions[loser25] = 4;
+            }
+
+            // Rank 5 & 6
+            if (m23 && m23.winner && m23.winner !== 'TBD') {
+                const loser23 = m23.winner === m23.teamA ? m23.teamB : m23.teamA;
+                if (loser23 && loser23 !== 'TBD') positions[loser23] = 5;
+            }
+            if (m24 && m24.winner && m24.winner !== 'TBD') {
+                const loser24 = m24.winner === m24.teamA ? m24.teamB : m24.teamA;
+                if (loser24 && loser24 !== 'TBD') positions[loser24] = 6;
+            }
+
+            // Rank 7 & 8
+            if (m21 && m21.winner && m21.winner !== 'TBD') {
+                const loser21 = m21.winner === m21.teamA ? m21.teamB : m21.teamA;
+                if (loser21 && loser21 !== 'TBD') positions[loser21] = 7;
+            }
+            if (m22 && m22.winner && m22.winner !== 'TBD') {
+                const loser22 = m22.winner === m22.teamA ? m22.teamB : m22.teamA;
+                if (loser22 && loser22 !== 'TBD') positions[loser22] = 8;
+            }
+        } else if (maxPlayersVal === 4) {
+            // Rank 1 & 2
+            if (m15 && m15.winner && m15.winner !== 'TBD') {
+                positions[m15.winner] = 1;
+                const loser15 = m15.winner === m15.teamA ? m15.teamB : m15.teamA;
+                if (loser15 && loser15 !== 'TBD') positions[loser15] = 2;
+            }
+
+            // Rank 3 & 4
+            if (m21 && m21.winner && m21.winner !== 'TBD') {
+                positions[m21.winner] = 3;
+                const loser21 = m21.winner === m21.teamA ? m21.teamB : m21.teamA;
+                if (loser21 && loser21 !== 'TBD') positions[loser21] = 4;
+            }
+        }
+
+        // Convert to array and calculate win rate
+        const standingsArr = Object.values(stats).map(s => {
+            const wr = s.mp > 0 ? Math.round((s.w / s.mp) * 100) : 0;
+            const rankPos = positions[s.team];
+            return { ...s, wr: `${wr}%`, rankPos };
+        });
+
+        // Sort by bracket position if available, else fallback to wins and matches played
+        standingsArr.sort((a, b) => {
+            if (a.rankPos !== undefined && b.rankPos !== undefined) {
+                return a.rankPos - b.rankPos;
+            }
+            if (a.rankPos !== undefined) return -1;
+            if (b.rankPos !== undefined) return 1;
+
+            if (b.w !== a.w) return b.w - a.w; 
+            if (a.mp !== b.mp) return a.mp - b.mp; 
+            return parseInt(b.wr) - parseInt(a.wr);
+        });
+
+        // Assign ranks
+        return standingsArr.map((s, idx) => ({ ...s, rank: idx + 1 }));
+    };
+
+    const standingsData = generateStandings();
 
     return (
         <div style={{ paddingBottom: '60px' }}>
@@ -413,7 +869,7 @@ const BracketPage = () => {
                 justifyContent: 'space-between', 
                 alignItems: 'center', 
                 marginBottom: '30px',
-                background: 'linear-gradient(90deg, rgba(123, 44, 191, 0.15) 0%, rgba(12, 8, 34, 0) 100%)',
+                background: 'linear-gradient(90deg, rgba(255, 85, 0, 0.1) 0%, rgba(0, 0, 0, 0) 100%)',
                 padding: '24px',
                 borderRadius: '16px',
                 border: '1px solid var(--border-glass)'
@@ -429,7 +885,7 @@ const BracketPage = () => {
                         </span>
                         <span style={{ color: 'var(--text-muted)' }}>|</span>
                         <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                            Players Joined: {playersCount} / {tournament ? tournament.maxPlayers : '16'}
+                            {tournament && tournament.competitorType === 'teams' ? 'Teams Joined' : 'Players Joined'}: {playersCount} / {tournament ? tournament.maxPlayers : '16'}
                         </span>
                     </div>
                 </div>
@@ -458,25 +914,91 @@ const BracketPage = () => {
                             border: '1px solid var(--border-glass)',
                             marginTop: '6px'
                         }}>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>Quick Add:</span>
-                            <select 
-                                value={selectedQuickAddUser}
-                                onChange={(e) => setSelectedQuickAddUser(e.target.value)}
-                                style={{ 
-                                    background: 'rgba(12, 8, 34, 0.8)', 
-                                    border: '1px solid var(--border-glass)', 
-                                    borderRadius: '4px', 
-                                    color: '#fff', 
-                                    padding: '4px 8px',
-                                    fontSize: '0.8rem',
-                                    outline: 'none'
-                                }}
-                            >
-                                <option value="">-- Select --</option>
-                                {availableUsers.map(user => (
-                                    <option key={user._id} value={user._id}>{user.username}</option>
-                                ))}
-                            </select>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>Quick Add {tournament && tournament.competitorType === 'teams' ? 'Team' : 'Player'}:</span>
+                            <div style={{ position: 'relative', minWidth: '150px' }} ref={quickAddDropdownRef}>
+                                <div 
+                                    onClick={() => setIsQuickAddDropdownOpen(!isQuickAddDropdownOpen)}
+                                    style={{ 
+                                        background: 'rgba(12, 8, 34, 0.8)', 
+                                        border: '1px solid var(--border-glass)', 
+                                        borderRadius: '4px', 
+                                        color: '#fff', 
+                                        padding: '4px 8px',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <span>
+                                        {selectedQuickAddUser 
+                                            ? (availableUsers.find(u => u._id === selectedQuickAddUser)?.username || '-- Select --') 
+                                            : '-- Select --'}
+                                    </span>
+                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3" style={{ transform: isQuickAddDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                {isQuickAddDropdownOpen && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        marginTop: '6px',
+                                        background: '#0d0d0d',
+                                        border: '1px solid var(--border-glass-hover)',
+                                        borderRadius: '6px',
+                                        padding: '4px 0',
+                                        zIndex: 1000,
+                                        boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+                                        maxHeight: '150px',
+                                        overflowY: 'auto'
+                                    }}>
+                                        <div
+                                            onClick={() => {
+                                                setSelectedQuickAddUser('');
+                                                setIsQuickAddDropdownOpen(false);
+                                            }}
+                                            style={{
+                                                padding: '6px 12px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem',
+                                                color: !selectedQuickAddUser ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                background: !selectedQuickAddUser ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                transition: 'var(--transition-smooth)'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = !selectedQuickAddUser ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                        >
+                                            -- Select --
+                                        </div>
+                                        {availableUsers.map(user => (
+                                            <div
+                                                key={user._id}
+                                                onClick={() => {
+                                                    setSelectedQuickAddUser(user._id);
+                                                    setIsQuickAddDropdownOpen(false);
+                                                }}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    color: selectedQuickAddUser === user._id ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                    background: selectedQuickAddUser === user._id ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                    transition: 'var(--transition-smooth)'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = selectedQuickAddUser === user._id ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                            >
+                                                {user.username}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <button 
                                 onClick={handleQuickAddPlayer}
                                 className="btn-success"
@@ -556,7 +1078,7 @@ const BracketPage = () => {
                                 onClick={() => setSelectedStage('losers')}
                                 style={{ padding: '8px 16px', fontSize: '0.85rem' }}
                             >
-                                Losers Bracket (Round 4)
+                                Losers Bracket
                             </button>
                         </div>
                     )}
@@ -576,173 +1098,325 @@ const BracketPage = () => {
                             position: 'relative',
                             justifyContent: 'center'
                         }}>
-                            {/* Column 1: Round of 16 */}
-                            {maxPlayersVal >= 16 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-                                    <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
-                                        Round of 16 (Click to Simulate)
-                                    </h3>
-                                    {roundOf16Matches.map(m => (
-                                        <div 
-                                            key={m.id} 
-                                            onClick={() => handleSimulateMatch(m.id, `Match ${m.id}`, m.teamA, m.teamB)}
-                                            style={{
-                                                background: 'var(--bg-card)',
-                                                border: '1px solid var(--border-glass)',
-                                                borderRadius: '8px',
-                                                padding: '12px',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: '6px',
-                                                cursor: 'pointer'
-                                            }}
-                                            className="glass-card"
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
-                                                <span>🥇 {m.teamA}</span>
-                                                <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
-                                                <span>🥈 {m.teamB}</span>
-                                                <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
-                                            </div>
+                            {selectedStage === 'winners' && (
+                                <>
+                                    {/* Column 1: Round of 16 */}
+                                    {maxPlayersVal >= 16 && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+                                            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                                Round of 16 (Click to Simulate)
+                                            </h3>
+                                            {roundOf16Matches.map(m => (
+                                                <div 
+                                                    key={m.id} 
+                                                    onClick={() => handleSimulateMatch(m.id, `Match ${m.id}`, m.teamA, m.teamB)}
+                                                    style={{
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border-glass)',
+                                                        borderRadius: '8px',
+                                                        padding: '12px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '6px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    className="glass-card"
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                        <span>🥇 {m.teamA}</span>
+                                                        <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                        <span>🥈 {m.teamB}</span>
+                                                        <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    )}
 
-                            {/* Column 2: Quarter Final */}
-                            {maxPlayersVal >= 8 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '100px', justifyContent: 'center', flex: 1 }}>
-                                    <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
-                                        Quarter Final
-                                    </h3>
-                                    {quarterMatches.map(m => (
-                                        <div 
-                                            key={m.id} 
-                                            onClick={() => handleSimulateMatch(m.id, 'Quarter Final', m.teamA, m.teamB)}
-                                            style={{
-                                                background: 'var(--bg-card)',
-                                                border: '1px solid var(--border-glass)',
-                                                borderRadius: '8px',
-                                                padding: '12px',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: '6px',
-                                                cursor: 'pointer'
-                                            }}
-                                            className="glass-card"
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
-                                                <span>{m.teamA}</span>
-                                                <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
-                                                <span>{m.teamB}</span>
-                                                <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
-                                            </div>
+                                    {/* Column 2: Quarter Final */}
+                                    {maxPlayersVal >= 8 && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '100px', justifyContent: 'center', flex: 1 }}>
+                                            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                                Quarter Final
+                                            </h3>
+                                            {quarterMatches.map(m => (
+                                                <div 
+                                                    key={m.id} 
+                                                    onClick={() => handleSimulateMatch(m.id, 'Quarter Final', m.teamA, m.teamB)}
+                                                    style={{
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border-glass)',
+                                                        borderRadius: '8px',
+                                                        padding: '12px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '6px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    className="glass-card"
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                        <span>{m.teamA}</span>
+                                                        <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                        <span>{m.teamB}</span>
+                                                        <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    )}
 
-                            {/* Column 3: Semi Final */}
-                            {maxPlayersVal >= 4 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '260px', justifyContent: 'center', flex: 1 }}>
-                                    <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
-                                        Semi Final
-                                    </h3>
-                                    {semiMatches.map(m => (
-                                        <div 
-                                            key={m.id} 
-                                            onClick={() => handleSimulateMatch(m.id, 'Semi Final', m.teamA, m.teamB)}
-                                            style={{
-                                                background: 'var(--bg-card)',
-                                                border: '1px solid var(--border-glass)',
-                                                borderRadius: '8px',
-                                                padding: '12px',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: '6px',
-                                                cursor: 'pointer'
-                                            }}
-                                            className="glass-card"
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
-                                                <span>{m.teamA}</span>
-                                                <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
-                                                <span>{m.teamB}</span>
-                                                <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
-                                            </div>
+                                    {/* Column 3: Semi Final */}
+                                    {maxPlayersVal >= 4 && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '260px', justifyContent: 'center', flex: 1 }}>
+                                            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                                Semi Final
+                                            </h3>
+                                            {semiMatches.map(m => (
+                                                <div 
+                                                    key={m.id} 
+                                                    onClick={() => handleSimulateMatch(m.id, 'Semi Final', m.teamA, m.teamB)}
+                                                    style={{
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border-glass)',
+                                                        borderRadius: '8px',
+                                                        padding: '12px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '6px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    className="glass-card"
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                        <span>{m.teamA}</span>
+                                                        <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                        <span>{m.teamB}</span>
+                                                        <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    )}
 
-                            {/* Column 4: Final */}
-                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: '260px' }}>
-                                <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
-                                    Final
-                                </h3>
-                                {finalMatches.map(m => (
-                                    <div 
-                                        key={m.id} 
-                                        onClick={() => handleSimulateMatch(m.id, 'Final', m.teamA, m.teamB)}
-                                        style={{
-                                            background: 'linear-gradient(135deg, rgba(0, 255, 240, 0.1) 0%, rgba(255, 0, 127, 0.1) 100%)',
-                                            border: '1px solid var(--color-cyan)',
-                                            borderRadius: '8px',
-                                            padding: '16px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '8px',
-                                            boxShadow: '0 0 15px var(--color-cyan-glow)',
-                                            cursor: 'pointer'
-                                        }}
-                                        className="glass-card"
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)' }}>
-                                            <span>🏆 {m.teamA}</span>
-                                            <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)' }}>
-                                            <span>🏆 {m.teamB}</span>
-                                            <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
-                                        </div>
+                                    {/* Column 4: Final */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: '260px' }}>
+                                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                            Final
+                                        </h3>
+                                        {finalMatches.map(m => (
+                                            <div 
+                                                key={m.id} 
+                                                onClick={() => handleSimulateMatch(m.id, 'Final', m.teamA, m.teamB)}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, rgba(255, 85, 0, 0.1) 0%, rgba(255, 120, 0, 0.05) 100%)',
+                                                    border: '1px solid var(--color-cyan)',
+                                                    borderRadius: '8px',
+                                                    padding: '16px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '8px',
+                                                    boxShadow: '0 0 15px var(--color-cyan-glow)',
+                                                    cursor: 'pointer'
+                                                }}
+                                                className="glass-card"
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)' }}>
+                                                    <span>🏆 {m.teamA}</span>
+                                                    <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)' }}>
+                                                    <span>🏆 {m.teamB}</span>
+                                                    <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                </>
+                            )}
+
+                            {selectedStage === 'losers' && maxPlayersVal === 8 && (
+                                <>
+                                    {/* Column 1: Losers Round 1 */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minWidth: '220px' }}>
+                                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                            Losers Round 1
+                                        </h3>
+                                        {losersMatches.filter(m => m.id === 21 || m.id === 22).map(m => (
+                                            <div 
+                                                key={m.id} 
+                                                onClick={() => handleSimulateMatch(m.id, `Losers Round 1 (Match ${m.id - 20})`, m.teamA, m.teamB)}
+                                                style={{
+                                                    background: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-glass)',
+                                                    borderRadius: '8px',
+                                                    padding: '12px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '6px',
+                                                    cursor: 'pointer'
+                                                }}
+                                                className="glass-card"
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                    <span>{m.teamA}</span>
+                                                    <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                    <span>{m.teamB}</span>
+                                                    <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Column 2: Losers Round 2 */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minWidth: '220px' }}>
+                                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                            Losers Round 2
+                                        </h3>
+                                        {losersMatches.filter(m => m.id === 23 || m.id === 24).map(m => (
+                                            <div 
+                                                key={m.id} 
+                                                onClick={() => handleSimulateMatch(m.id, `Losers Round 2 (Match ${m.id - 22})`, m.teamA, m.teamB)}
+                                                style={{
+                                                    background: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-glass)',
+                                                    borderRadius: '8px',
+                                                    padding: '12px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '6px',
+                                                    cursor: 'pointer'
+                                                }}
+                                                className="glass-card"
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                    <span>{m.teamA}</span>
+                                                    <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                    <span>{m.teamB}</span>
+                                                    <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Column 3: Losers Final */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', justifyItems: 'center', justifyContent: 'center', flex: 1, minWidth: '220px' }}>
+                                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                            Losers Final
+                                        </h3>
+                                        {losersMatches.filter(m => m.id === 25).map(m => (
+                                            <div 
+                                                key={m.id} 
+                                                onClick={() => handleSimulateMatch(m.id, 'Losers Final', m.teamA, m.teamB)}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, rgba(255, 85, 0, 0.1) 0%, rgba(255, 120, 0, 0.05) 100%)',
+                                                    border: '1px solid var(--color-cyan)',
+                                                    borderRadius: '8px',
+                                                    padding: '12px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '6px',
+                                                    cursor: 'pointer'
+                                                }}
+                                                className="glass-card"
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                    <span>{m.teamA}</span>
+                                                    <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                    <span>{m.teamB}</span>
+                                                    <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+
+                            {selectedStage === 'losers' && maxPlayersVal === 4 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyItems: 'center', justifyContent: 'center', flex: 1, minWidth: '220px' }}>
+                                    <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '6px' }}>
+                                        Losers Final
+                                    </h3>
+                                    {losersMatches.filter(m => m.id === 21).map(m => (
+                                        <div 
+                                            key={m.id} 
+                                            onClick={() => handleSimulateMatch(m.id, 'Losers Final', m.teamA, m.teamB)}
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(255, 85, 0, 0.1) 0%, rgba(255, 120, 0, 0.05) 100%)',
+                                                border: '1px solid var(--color-cyan)',
+                                                borderRadius: '8px',
+                                                padding: '12px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '6px',
+                                                cursor: 'pointer'
+                                            }}
+                                            className="glass-card"
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamA ? '700' : '400' }}>
+                                                <span>{m.teamA}</span>
+                                                <span>{m.scoreA !== null ? m.scoreA : '-'}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m.winner === m.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m.winner === m.teamB ? '700' : '400' }}>
+                                                <span>{m.teamB}</span>
+                                                <span>{m.scoreB !== null ? m.scoreB : '-'}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Third Place playoff */}
-                        {maxPlayersVal >= 4 && (
+                        {/* Dynamic Third Place playoff */}
+                        {maxPlayersVal >= 4 && selectedStage === 'winners' && (
                             <div style={{
                                 borderTop: '1px solid var(--border-glass)',
                                 paddingTop: '25px',
                                 marginTop: '15px'
                             }}>
                                 <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>Third place play-off</h4>
-                                <div style={{
-                                    width: '280px',
-                                    background: 'var(--bg-card)',
-                                    border: '1px solid var(--border-glass)',
-                                    borderRadius: '8px',
-                                    padding: '12px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '6px'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                                        <span>🥉 {thirdPlaceMatch.teamA}</span>
-                                        <span>{thirdPlaceMatch.scoreA !== null ? thirdPlaceMatch.scoreA : '-'}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                                        <span>🥉 {thirdPlaceMatch.teamB}</span>
-                                        <span>{thirdPlaceMatch.scoreB !== null ? thirdPlaceMatch.scoreB : '-'}</span>
-                                    </div>
-                                </div>
+                                {(() => {
+                                    const m3 = maxPlayersVal === 4 ? losersMatches.find(l => l.id === 21) : losersMatches.find(l => l.id === 25);
+                                    if (!m3) return null;
+                                    return (
+                                        <div 
+                                            onClick={() => handleSimulateMatch(m3.id, 'Losers Final (3rd Place Playoff)', m3.teamA, m3.teamB)}
+                                            style={{
+                                                width: '280px',
+                                                background: 'var(--bg-card)',
+                                                border: '1px solid var(--border-glass)',
+                                                borderRadius: '8px',
+                                                padding: '12px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '6px',
+                                                cursor: 'pointer'
+                                            }}
+                                            className="glass-card"
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m3.winner === m3.teamA ? '#fff' : 'var(--text-muted)', fontWeight: m3.winner === m3.teamA ? '700' : '400' }}>
+                                                <span>🥉 {m3.teamA}</span>
+                                                <span>{m3.scoreA !== null ? m3.scoreA : '-'}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', color: m3.winner === m3.teamB ? '#fff' : 'var(--text-muted)', fontWeight: m3.winner === m3.teamB ? '700' : '400' }}>
+                                                <span>🥉 {m3.teamB}</span>
+                                                <span>{m3.scoreB !== null ? m3.scoreB : '-'}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
@@ -765,7 +1439,7 @@ const BracketPage = () => {
                                 left: 0,
                                 width: '100%',
                                 height: '100%',
-                                background: 'linear-gradient(135deg, #110022 0%, #000000 100%)',
+                                background: 'linear-gradient(135deg, #1a1a1a 0%, #000000 100%)',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -815,12 +1489,12 @@ const BracketPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {[
-                                { rank: 1, team: 'Dallas Mavericks', mp: 5, w: 5, l: 0, wr: '100%' },
-                                { rank: 2, team: 'Home Runner', mp: 6, w: 4, l: 2, wr: '66.7%' },
-                                { rank: 3, team: 'Manner Runs', mp: 4, w: 3, l: 1, wr: '75%' },
-                                { rank: 4, team: 'Barcelona FC', mp: 4, w: 2, l: 2, wr: '50%' },
-                            ].map((team) => (
+                            {standingsData.length === 0 && (
+                                <tr>
+                                    <td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No players registered yet.</td>
+                                </tr>
+                            )}
+                            {standingsData.map((team) => (
                                 <tr key={team.rank}>
                                     <td><strong>#{team.rank}</strong></td>
                                     <td style={{ fontWeight: '600' }}>{team.team}</td>
@@ -872,20 +1546,20 @@ const BracketPage = () => {
                     left: 0,
                     width: '100vw',
                     height: '100vh',
-                    background: 'rgba(6, 4, 18, 0.85)',
+                    background: 'rgba(0, 0, 0, 0.85)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     zIndex: 1000,
                     backdropFilter: 'blur(8px)',
-                    fontFamily: "'Outfit', sans-serif"
+                    fontFamily: "var(--font-family)"
                 }}>
                     <div className="glass-panel" style={{
                         width: '600px',
                         padding: '30px',
                         position: 'relative',
-                        border: '1px solid rgba(0, 255, 240, 0.25)',
-                        boxShadow: '0 0 40px rgba(0, 255, 240, 0.15)'
+                        border: '1px solid rgba(255, 85, 0, 0.25)',
+                        boxShadow: '0 0 40px rgba(255, 85, 0, 0.15)'
                     }}>
                         {/* Close button */}
                         <button 
@@ -904,7 +1578,7 @@ const BracketPage = () => {
                             &times;
                         </button>
 
-                        <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '8px', background: 'linear-gradient(to right, #fff, var(--color-cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '8px', color: '#ffffff' }}>
                             Match Integration Hub
                         </h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
@@ -919,7 +1593,7 @@ const BracketPage = () => {
                                 </div>
                                 <div>
                                     <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Match Telemetry ID</span>
-                                    <span style={{ color: 'var(--color-cyan)', fontWeight: 'bold' }}>PUBG_STEAM_MATCH_94829103</span>
+                                    <span style={{ color: 'var(--color-cyan)', fontWeight: 'bold' }}>{getTelemetryId(tournament?.game)}</span>
                                 </div>
                             </div>
                         </div>
@@ -964,7 +1638,7 @@ const BracketPage = () => {
                         {/* Fetched Match Telemetry Summary */}
                         {apiFetchStatus === 'success' && simulatedStats && (
                             <div>
-                                <div style={{ background: 'rgba(0, 255, 240, 0.04)', border: '1px solid rgba(0, 255, 240, 0.15)', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <div style={{ background: 'rgba(255, 85, 0, 0.04)', border: '1px solid rgba(255, 85, 0, 0.15)', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
                                     <span><strong>Server:</strong> {simulatedStats.server}</span>
                                     <span><strong>Match Duration:</strong> {simulatedStats.duration}</span>
                                 </div>

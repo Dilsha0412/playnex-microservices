@@ -27,6 +27,7 @@ export const tournamentService = {
 export const leaderboardService = {
     getTopPlayers: (game) => api.get('/api/leaderboard', { params: game ? { game } : {} }),
     addScore: (userId, score) => api.post('/api/leaderboard/add-score', { userId, score }),
+    submitTournamentStandings: (data) => api.post('/api/leaderboard/tournament-completed', data),
 };
 
 export const matchService = {
