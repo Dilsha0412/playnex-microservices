@@ -1,43 +1,79 @@
-import React, { useEffect, useState } from 'react';
-import { leaderboardService, userService } from '../services/api';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { leaderboardService, userService, tournamentService } from '../services/api';
 
 const LeaderboardPage = () => {
+    const navigate = useNavigate();
+    const fileInputRef = useRef(null);
+    const [customAvatarUrl, setCustomAvatarUrl] = useState(null);
     const [players, setPlayers] = useState([]);
     const [allUsers, setAllUsers] = useState([]);
-    const [activeFilter, setActiveFilter] = useState('weekly');
+    const [activeFilter, setActiveFilter] = useState('all-time');
+    const [gameFilter, setGameFilter] = useState(() => {
+        return localStorage.getItem('playnex_last_played_game') || 'All Games';
+    });
+    const [gamesList, setGamesList] = useState([]);
 
     useEffect(() => {
         const loadLeaderboardData = async () => {
             try {
-                // Try resolving real backend users and leaderboard scores
-                const [leaderboardRes, usersRes] = await Promise.all([
-                    leaderboardService.getTopPlayers(),
-                    userService.getAllUsers().catch(() => ({ data: [] }))
+                // Try resolving real backend users, leaderboard scores, and tournament games
+                const [leaderboardRes, usersRes, tournamentsRes] = await Promise.all([
+                    leaderboardService.getTopPlayers(gameFilter === 'All Games' ? null : gameFilter),
+                    userService.getAllUsers().catch(() => ({ data: [] })),
+                    tournamentService.getAll().catch(() => ({ data: [] }))
                 ]);
 
-                const userMap = {};
-                if (usersRes.data) {
-                    setAllUsers(usersRes.data);
-                    usersRes.data.forEach(user => {
-                        userMap[user._id] = user.username;
-                    });
+                if (tournamentsRes.data) {
+                    const uniqueGames = [...new Set(tournamentsRes.data.map(t => t.game).filter(Boolean))];
+                    setGamesList(['All Games', ...uniqueGames]);
                 }
 
-                if (leaderboardRes.data && leaderboardRes.data.length > 0) {
-                    // Map backend data
-                    const formatted = leaderboardRes.data.map((item, index) => {
-                        const pts = item.points || 0;
+                if (usersRes.data && usersRes.data.length > 0) {
+                    setAllUsers(usersRes.data);
+
+                    const leaderboardMap = {};
+                    if (leaderboardRes.data) {
+                        leaderboardRes.data.forEach(item => {
+                            leaderboardMap[item.userId] = item;
+                        });
+                    }
+
+                    // When a specific game is selected, only show users who played that game
+                    const usersToShow = gameFilter !== 'All Games'
+                        ? usersRes.data.filter(user => leaderboardMap[user._id])
+                        : usersRes.data;
+
+                    let formatted = usersToShow.map((user) => {
+                        const item = leaderboardMap[user._id] || { points: 0, wins: 0, losses: 0 };
+                        let pts = item.points || 0;
+                        let wins = item.wins || 0;
+                        let losses = item.losses || 0;
+
+                        // Use exact points from database
+                        let multiplier = 1;
+                        let variation = 1;
+
+                        pts = Math.round(pts * multiplier * variation);
+                        wins = Math.round(wins * multiplier * variation);
+                        losses = Math.round(losses * multiplier * variation);
+
                         return {
-                            id: item.userId,
-                            username: userMap[item.userId] || `User_${item.userId.slice(-4)}`,
+                            id: user._id,
+                            username: user.username,
                             title: pts > 20 ? 'Master Champion' : pts > 10 ? 'Senior Challenger' : 'Elite Combatant',
                             score: pts,
                             level: pts > 20 ? 'Lv-3' : pts > 10 ? 'Lv-2' : 'Lv-1',
-                            avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${userMap[item.userId] || item.userId}`,
-                            wins: item.wins || 0,
-                            losses: item.losses || 0
+                            avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`,
+                            wins: wins,
+                            losses: losses,
+                            originalScore: pts
                         };
                     });
+                    
+                    // Sort players based on scores
+                    formatted.sort((a, b) => b.score - a.score);
+
                     setPlayers(formatted);
                 } else {
                     setPlayers([]);
@@ -49,8 +85,7 @@ const LeaderboardPage = () => {
         };
 
         loadLeaderboardData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [activeFilter, gameFilter]);
 
     // Podium details
     const podiumPlayers = players.slice(0, 3);
@@ -86,51 +121,70 @@ const LeaderboardPage = () => {
         gap: '20px'
     };
 
-    const infoCardStyle = {
-        padding: '16px',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '12px',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-glass)',
-        borderRadius: '12px',
-        transition: 'var(--transition-smooth)'
-    };
-
     return (
         <div style={{ paddingBottom: '60px' }}>
             <div style={layoutStyle} className="hidden-mobile-grid">
 
                 {/* LEFT COLUMN: Standing Podium & List */}
                 <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
                         <div>
-                            <h1 style={{ fontSize: '2.2rem', fontWeight: '800' }}>Leaderboard</h1>
-                            <p style={{ color: 'var(--text-muted)' }}>Top ranking athletes across the platform</p>
+                            <h1 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '6px' }}>Leaderboard</h1>
+                            <p style={{ color: 'var(--text-muted)' }}>
+                                {gameFilter === 'All Games' ? 'Top ranking athletes across the platform' : `${gameFilter} Rankings`}
+                            </p>
                         </div>
 
-                        {/* Tab Filter */}
-                        <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-glass)' }}>
-                            {['weekly', 'monthly', 'all-time'].map(f => (
-                                <button
-                                    key={f}
-                                    onClick={() => setActiveFilter(f)}
+                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* Game Selector Dropdown */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Game:</span>
+                                <select
+                                    value={gameFilter}
+                                    onChange={(e) => setGameFilter(e.target.value)}
                                     style={{
                                         padding: '8px 16px',
-                                        background: activeFilter === f ? 'var(--color-cyan)' : 'transparent',
-                                        color: activeFilter === f ? '#0c0822' : 'var(--text-muted)',
-                                        border: 'none',
-                                        borderRadius: '8px',
+                                        background: 'rgba(0,0,0,0.3)',
+                                        color: '#fff',
+                                        border: '1px solid var(--border-glass)',
+                                        borderRadius: '10px',
                                         fontWeight: '700',
-                                        textTransform: 'capitalize',
                                         cursor: 'pointer',
-                                        fontSize: '0.85rem',
+                                        outline: 'none',
                                         transition: 'var(--transition-smooth)'
                                     }}
                                 >
-                                    {f}
-                                </button>
-                            ))}
+                                    {gamesList.map(g => (
+                                        <option key={g} value={g} style={{ background: '#0c0822', color: '#fff' }}>
+                                            {g}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Tab Filter */}
+                            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-glass)' }}>
+                                {['weekly', 'monthly', 'all-time'].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setActiveFilter(f)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            background: activeFilter === f ? 'var(--color-cyan)' : 'transparent',
+                                            color: activeFilter === f ? '#0c0822' : 'var(--text-muted)',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            fontWeight: '700',
+                                            textTransform: 'capitalize',
+                                            cursor: 'pointer',
+                                            fontSize: '0.85rem',
+                                            transition: 'var(--transition-smooth)'
+                                        }}
+                                    >
+                                        {f}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -277,11 +331,43 @@ const LeaderboardPage = () => {
                         const activeEmail = activeUser ? activeUser.email : 'Login to save progress';
                         const activeWins = activeLeaderboard ? activeLeaderboard.wins : 0;
                         const activeLosses = activeLeaderboard ? activeLeaderboard.losses : 0;
-                        const activeAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${activeUsername}`;
+                        const storedAvatar = activeUserId ? localStorage.getItem(`playnex_avatar_${activeUserId}`) : null;
+                        const activeAvatar = customAvatarUrl || storedAvatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${activeUsername}`;
+
+                        const handleAvatarClick = () => {
+                            if (!activeUserId) {
+                                navigate('/register');
+                            } else {
+                                fileInputRef.current.click();
+                            }
+                        };
+
+                        const handleFileChange = (e) => {
+                            const file = e.target.files[0];
+                            if (file && activeUserId) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    setCustomAvatarUrl(reader.result);
+                                    localStorage.setItem(`playnex_avatar_${activeUserId}`, reader.result);
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        };
 
                         return (
                             <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', position: 'relative' }}>
-                                <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    style={{ display: 'none' }} 
+                                    ref={fileInputRef} 
+                                    onChange={handleFileChange} 
+                                />
+                                <div 
+                                    onClick={handleAvatarClick}
+                                    style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', padding: '6px', cursor: 'pointer', transition: 'var(--transition-smooth)' }}
+                                    className="hover-opacity"
+                                >
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                                         <circle cx="12" cy="13" r="4" />
@@ -294,7 +380,12 @@ const LeaderboardPage = () => {
                                     style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid var(--color-cyan)', objectFit: 'cover', marginBottom: '12px' }}
                                 />
                                 <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '4px' }}>{activeUsername}</h2>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>{activeEmail}</p>
+                                <p 
+                                    onClick={() => !activeUserId && navigate('/register')}
+                                    style={{ fontSize: '0.8rem', color: !activeUserId ? 'var(--color-cyan)' : 'var(--text-muted)', marginBottom: '16px', cursor: !activeUserId ? 'pointer' : 'default', textDecoration: !activeUserId ? 'underline' : 'none' }}
+                                >
+                                    {activeEmail}
+                                </p>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--border-glass)', paddingTop: '16px', marginTop: '16px' }}>
                                     <div>
@@ -310,66 +401,6 @@ const LeaderboardPage = () => {
                         );
                     })()}
 
-                    {/* Insights list matching Image 3 */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-                        {/* 1. Analyze Market Trends */}
-                        <div style={infoCardStyle} className="glass-card">
-                            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(0, 255, 240, 0.1)', color: 'var(--color-cyan)' }}>
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="20" x2="18" y2="10" />
-                                    <line x1="12" y1="20" x2="12" y2="4" />
-                                    <line x1="6" y1="20" x2="6" y2="14" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px' }}>Analyze Market Trends</h4>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Track real-time trading insights and study collectible card market movements.</p>
-                            </div>
-                        </div>
-
-                        {/* 2. Join the Challenge */}
-                        <div style={infoCardStyle} className="glass-card">
-                            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(123, 44, 191, 0.15)', color: 'var(--color-purple-light)' }}>
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-                                    <polyline points="16 7 22 7 22 13" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px' }}>Join the Challenge</h4>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Participate with a small entry fee and compete with other collectors.</p>
-                            </div>
-                        </div>
-
-                        {/* 3. Earn Rewards */}
-                        <div style={infoCardStyle} className="glass-card">
-                            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(255, 159, 28, 0.15)', color: 'var(--color-orange)' }}>
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34" />
-                                    <path d="M12 2a4 4 0 0 0-4 4v8a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px' }}>Earn Rewards</h4>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Top performers win bonus points, unlock new levels, and gain exclusive badges.</p>
-                            </div>
-                        </div>
-
-                        {/* 4. Redeem & Upgrade */}
-                        <div style={infoCardStyle} className="glass-card">
-                            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(255, 0, 127, 0.15)', color: 'var(--color-pink)' }}>
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px' }}>Redeem & Upgrade</h4>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>Use earned tokens to unlock premium features and limited-edition collectibles.</p>
-                            </div>
-                        </div>
-
-                    </div>
                 </div>
 
             </div>

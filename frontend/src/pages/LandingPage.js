@@ -168,18 +168,6 @@ const LandingPage = () => {
         transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
     };
 
-    const ctaConsoleStyle = {
-        background: 'transparent',
-        color: '#ffffff',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        borderRadius: '30px',
-        padding: '14px 32px',
-        fontSize: '1rem',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
-    };
-
     return (
         <div style={containerStyle}>
             {/* Massive Displays Stretched Background Typography */}
@@ -213,7 +201,6 @@ const LandingPage = () => {
                     <li><span style={navLinkStyle} onClick={() => navigate('/home')} className="nav-hover-link">Platform</span></li>
                     <li><span style={navLinkStyle} onClick={() => navigate('/bracket/csgo')} className="nav-hover-link">Tournaments</span></li>
                     <li><span style={navLinkStyle} onClick={() => navigate('/leaderboard')} className="nav-hover-link">Leaderboards</span></li>
-                    <li><span style={navLinkStyle} onClick={() => navigate('/organizer')} className="nav-hover-link">Organizer</span></li>
                     <li><a href="mailto:support@playnex.com" style={navLinkStyle} className="nav-hover-link">Support</a></li>
                 </ul>
 
@@ -253,13 +240,6 @@ const LandingPage = () => {
                         className="btn-cta-white"
                     >
                         Start now
-                    </button>
-                    <button 
-                        style={ctaConsoleStyle} 
-                        onClick={() => navigate('/organizer')}
-                        className="btn-cta-outline"
-                    >
-                        Organizer console
                     </button>
                 </div>
             </section>
