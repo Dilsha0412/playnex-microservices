@@ -123,7 +123,7 @@ const Sidebar = () => {
         textDecoration: 'none',
         fontWeight: isActive ? '600' : '500',
         fontSize: '0.95rem',
-        background: isActive ? 'rgba(0, 255, 240, 0.08)' : 'transparent',
+        background: isActive ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
         borderLeft: isActive ? '3px solid var(--color-cyan)' : '3px solid transparent',
         transition: 'var(--transition-smooth)'
     });
@@ -180,9 +180,9 @@ const Sidebar = () => {
                     }} 
                     style={{
                         ...footerLinkStyle,
-                        background: 'rgba(255, 0, 127, 0.1)',
-                        color: 'var(--color-pink)',
-                        border: '1px solid var(--color-pink)',
+                        background: 'rgba(255, 85, 0, 0.1)',
+                        color: 'var(--color-cyan)',
+                        border: '1px solid var(--color-cyan)',
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontWeight: 'bold',

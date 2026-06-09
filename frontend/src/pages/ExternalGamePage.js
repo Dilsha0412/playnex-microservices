@@ -55,7 +55,7 @@ const ExternalGamePage = () => {
                         marginTop: '15px', 
                         padding: '15px', 
                         borderRadius: '8px', 
-                        background: 'rgba(0, 255, 240, 0.1)', 
+                        background: 'rgba(255, 85, 0, 0.1)', 
                         border: '1px solid var(--color-cyan)',
                         display: 'inline-block'
                     }}>

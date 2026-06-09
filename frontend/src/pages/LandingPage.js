@@ -8,9 +8,9 @@ const LandingPage = () => {
         position: 'relative',
         width: '100vw',
         height: '100vh',
-        background: '#04020f', // Extra deep dark space background
+        background: '#000000', // Extra deep dark black background
         color: '#ffffff',
-        fontFamily: "'Outfit', sans-serif",
+        fontFamily: "var(--font-family)",
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -22,8 +22,8 @@ const LandingPage = () => {
     const bgTextStyle = {
         position: 'absolute',
         fontWeight: '900',
-        color: '#5b2fbc', // Sleek violet/purple color
-        opacity: '0.22', // Subtle background integration
+        color: '#ff5500', // Sleek orange color
+        opacity: '0.06', // Subtle background integration
         whiteSpace: 'nowrap',
         userSelect: 'none',
         pointerEvents: 'none',
@@ -91,7 +91,7 @@ const LandingPage = () => {
     };
 
     const logoIconStyle = {
-        background: 'linear-gradient(135deg, #00fff0 0%, #7b2cbf 100%)',
+        background: 'linear-gradient(135deg, #ff5500 0%, #ff8800 100%)',
         width: '28px',
         height: '28px',
         borderRadius: '6px',
@@ -156,15 +156,15 @@ const LandingPage = () => {
     };
 
     const ctaStartStyle = {
-        background: '#ffffff',
-        color: '#060412',
+        background: 'var(--color-cyan)',
+        color: '#ffffff',
         border: 'none',
         borderRadius: '30px',
         padding: '14px 32px',
         fontSize: '1rem',
         fontWeight: '700',
         cursor: 'pointer',
-        boxShadow: '0 4px 25px rgba(255, 255, 255, 0.15)',
+        boxShadow: '0 4px 25px rgba(255, 85, 0, 0.25)',
         transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
     };
 
@@ -184,7 +184,7 @@ const LandingPage = () => {
                 transform: 'translate(-50%, -50%)',
                 width: '450px',
                 height: '450px',
-                background: 'radial-gradient(circle, rgba(123, 44, 191, 0.3) 0%, rgba(0, 255, 240, 0.05) 50%, rgba(0,0,0,0) 70%)',
+                background: 'radial-gradient(circle, rgba(255, 85, 0, 0.2) 0%, rgba(255, 85, 0, 0.05) 50%, rgba(0,0,0,0) 70%)',
                 zIndex: '1',
                 pointerEvents: 'none',
                 filter: 'blur(30px)'
@@ -208,15 +208,15 @@ const LandingPage = () => {
                     <button 
                         onClick={() => navigate('/register')}
                         style={{
-                            background: '#ffffff',
-                            color: '#060412',
+                            background: 'var(--color-cyan)',
+                            color: '#ffffff',
                             border: 'none',
                             borderRadius: '20px',
                             padding: '8px 20px',
                             fontSize: '0.85rem',
                             fontWeight: '700',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 15px rgba(255,255,255,0.1)',
+                            boxShadow: '0 4px 15px rgba(255,85,0,0.2)',
                             transition: 'all 0.2s'
                         }}
                         className="btn-hover-solid"

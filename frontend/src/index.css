@@ -1,24 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Play:wght@400;700&display=swap');
 
 :root {
-  --bg-deep: #0c0822;
-  --bg-sidebar: #130d32;
-  --bg-panel: rgba(23, 17, 54, 0.65);
-  --bg-card: rgba(36, 28, 82, 0.5);
-  --bg-card-hover: rgba(50, 40, 110, 0.7);
-  --border-glass: rgba(255, 255, 255, 0.07);
+  --bg-deep: #000000;
+  --bg-sidebar: #0d0d0d;
+  --bg-panel: rgba(20, 20, 20, 0.75);
+  --bg-card: rgba(30, 30, 30, 0.55);
+  --bg-card-hover: rgba(45, 45, 45, 0.8);
+  --border-glass: rgba(255, 255, 255, 0.08);
   --border-glass-hover: rgba(255, 255, 255, 0.15);
-  --color-cyan: #00fff0;
-  --color-cyan-glow: rgba(0, 255, 240, 0.35);
-  --color-purple: #7b2cbf;
-  --color-purple-light: #9d4edd;
-  --color-pink: #ff007f;
-  --color-pink-glow: rgba(255, 0, 127, 0.3);
-  --color-green: #00ff66;
-  --color-orange: #ff9f1c;
+  --color-cyan: #ff5500;
+  --color-cyan-glow: rgba(255, 85, 0, 0.35);
+  --color-purple: #ff8800;
+  --color-purple-light: #ffaa00;
+  --color-pink: #ff3c00;
+  --color-pink-glow: rgba(255, 60, 0, 0.3);
+  --color-green: #ffa500;
+  --color-orange: #ff5500;
   --text-main: #f0f0ff;
   --text-muted: #9593b8;
-  --font-family: 'Outfit', sans-serif;
+  --font-family: 'Play', sans-serif;
   --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
@@ -87,7 +87,7 @@ body {
 
 .navbar-area {
   grid-area: navbar;
-  background: rgba(12, 8, 34, 0.85);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-glass);
   z-index: 10;
@@ -97,7 +97,7 @@ body {
   grid-area: main;
   overflow-y: auto;
   padding: 30px;
-  background: radial-gradient(circle at 50% 50%, rgba(123, 44, 191, 0.1) 0%, rgba(12, 8, 34, 0) 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 85, 0, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 /* Glassmorphism Panel style */
@@ -136,7 +136,7 @@ body {
   background: var(--color-cyan);
   border: none;
   border-radius: 8px;
-  color: var(--bg-deep);
+  color: #ffffff;
   font-family: var(--font-family);
   font-weight: 700;
   padding: 10px 20px;
@@ -204,13 +204,13 @@ body {
   background: var(--color-green);
   border: none;
   border-radius: 8px;
-  color: #0c0822;
+  color: #ffffff;
   font-family: var(--font-family);
   font-weight: 700;
   padding: 10px 20px;
   cursor: pointer;
   transition: var(--transition-smooth);
-  box-shadow: 0 4px 15px rgba(0, 255, 102, 0.3);
+  box-shadow: 0 4px 15px rgba(255, 85, 0, 0.3);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -219,7 +219,7 @@ body {
 
 .btn-success:hover {
   transform: scale(1.03);
-  box-shadow: 0 6px 20px rgba(0, 255, 102, 0.5);
+  box-shadow: 0 6px 20px rgba(255, 85, 0, 0.5);
 }
 
 /* Badges styling */
@@ -308,7 +308,7 @@ body {
 }
 
 .form-input {
-  background: rgba(12, 8, 34, 0.6);
+  background: rgba(0, 0, 0, 0.6);
   border: 1px solid var(--border-glass);
   border-radius: 8px;
   padding: 12px;
@@ -341,14 +341,14 @@ body {
 }
 
 .nav-hover-link:hover {
-  color: #00fff0 !important;
-  text-shadow: 0 0 8px rgba(0, 255, 240, 0.5);
+  color: #ff5500 !important;
+  text-shadow: 0 0 8px rgba(255, 85, 0, 0.5);
 }
 
 .btn-hover-glow:hover {
   border-color: var(--color-cyan) !important;
   color: var(--color-cyan) !important;
-  box-shadow: 0 0 15px rgba(0, 255, 240, 0.3);
+  box-shadow: 0 0 15px rgba(255, 85, 0, 0.3);
 }
 
 .btn-hover-solid:hover {
@@ -365,6 +365,6 @@ body {
   border-color: var(--color-cyan) !important;
   color: var(--color-cyan) !important;
   transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(0, 255, 240, 0.15);
+  box-shadow: 0 8px 30px rgba(255, 85, 0, 0.15);
 }
 

@@ -181,7 +181,7 @@ const OrganizerPage = () => {
                         setStatus('setup');
                         setShowModal(true);
                     }} 
-                    style={{ background: 'linear-gradient(to right, #2ec4b6, #00f5d4)' }}
+                    style={{ background: 'linear-gradient(to right, #ff5500, #ff7f00)' }}
                     className="btn-success"
                 >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
@@ -324,7 +324,7 @@ const OrganizerPage = () => {
                     left: 0,
                     width: '100vw',
                     height: '100vh',
-                    background: 'rgba(6, 4, 18, 0.85)',
+                    background: 'rgba(0, 0, 0, 0.85)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -335,8 +335,8 @@ const OrganizerPage = () => {
                         width: '500px',
                         padding: '30px',
                         position: 'relative',
-                        border: '1px solid rgba(0, 255, 240, 0.2)',
-                        boxShadow: '0 0 30px rgba(0, 255, 240, 0.1)'
+                        border: '1px solid rgba(255, 85, 0, 0.2)',
+                        boxShadow: '0 0 30px rgba(255, 85, 0, 0.1)'
                     }}>
                         {/* Close button */}
                         <button 

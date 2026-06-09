@@ -69,16 +69,15 @@ const Home = () => {
 
     const heroBannerStyle = {
         position: 'relative',
-        height: '380px',
-        borderRadius: '16px',
+        height: 'calc(100vh - 70px)',
+        margin: '-30px -30px 40px -30px',
         overflow: 'hidden',
-        marginBottom: '35px',
         display: 'flex',
         alignItems: 'flex-end',
-        backgroundImage: 'url("/battle_royale_hero.png")',
+        backgroundImage: 'url("/battle_royale_hero.jpg")',
         backgroundSize: 'cover',
         backgroundPosition: 'center 35%',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
     };
 
@@ -88,15 +87,17 @@ const Home = () => {
         left: 0,
         width: '100%',
         height: '100%',
-        background: 'linear-gradient(to top, rgba(12, 8, 34, 0.95) 10%, rgba(12, 8, 34, 0.3) 60%, rgba(12, 8, 34, 0) 100%)',
+        background: 'linear-gradient(to top, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.3) 60%, rgba(0, 0, 0, 0) 100%)',
         zIndex: 1
     };
 
     const heroContentStyle = {
         position: 'relative',
         zIndex: 2,
-        padding: '40px',
-        maxWidth: '650px'
+        padding: '40px 40px 80px 40px',
+        maxWidth: '1200px',
+        width: '100%',
+        margin: '0 auto'
     };
 
     const sectionTitleStyle = {
@@ -161,8 +162,10 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* Popular Leagues Section */}
-            <div>
+            {/* Content Wrapper */}
+            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                {/* Popular Leagues Section */}
+                <div>
                 <div style={sectionTitleStyle}>
                     <span>Popular Leagues</span>
                     <Link to="/bracket/csgo" style={{ fontSize: '0.85rem', color: 'var(--color-cyan)', textDecoration: 'none', fontWeight: '600' }}>
@@ -257,6 +260,7 @@ const Home = () => {
                         ))
                     )}
                 </div>
+            </div>
             </div>
         </div>
     );

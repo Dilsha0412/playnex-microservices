@@ -2,7 +2,11 @@ const Tournament = require('../models/Tournament');
 
 // Create Tournament
 exports.createTournament = async (data) => {
-    const tournament = new Tournament(data);
+    const maxPlayers = parseInt(data.maxPlayers, 10);
+    if (![2, 4, 8, 16].includes(maxPlayers)) {
+        throw new Error('Tournament player limit must be exactly 2, 4, 8, or 16.');
+    }
+    const tournament = new Tournament({ ...data, maxPlayers });
     return await tournament.save();
 };
 
@@ -27,6 +31,13 @@ exports.getAllTournaments = async () => {
 
 // Update Tournament
 exports.updateTournament = async (id, data) => {
+    if (data.maxPlayers !== undefined) {
+        const maxPlayers = parseInt(data.maxPlayers, 10);
+        if (![2, 4, 8, 16].includes(maxPlayers)) {
+            throw new Error('Tournament player limit must be exactly 2, 4, 8, or 16.');
+        }
+        data.maxPlayers = maxPlayers;
+    }
     return await Tournament.findByIdAndUpdate(id, data, { new: true });
 };
 

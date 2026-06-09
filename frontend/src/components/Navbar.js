@@ -110,8 +110,8 @@ const Navbar = () => {
     };
 
     const pointsBadgeStyle = {
-        background: 'rgba(0, 255, 240, 0.08)',
-        border: '1px solid rgba(0, 255, 240, 0.2)',
+        background: 'rgba(255, 85, 0, 0.08)',
+        border: '1px solid rgba(255, 85, 0, 0.2)',
         borderRadius: '12px',
         padding: '6px 14px',
         display: 'flex',
@@ -197,7 +197,7 @@ const Navbar = () => {
                         left: '0',
                         right: '0',
                         marginTop: '10px',
-                        background: '#1A162B',
+                        background: '#121212',
                         border: '1px solid var(--border-glass)',
                         borderRadius: '12px',
                         padding: '10px 0',
@@ -229,7 +229,7 @@ const Navbar = () => {
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                     >
-                                        <div style={{ background: 'rgba(0, 255, 240, 0.1)', padding: '5px', borderRadius: '6px' }}>
+                                        <div style={{ background: 'rgba(255, 85, 0, 0.1)', padding: '5px', borderRadius: '6px' }}>
                                             <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--color-cyan)"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM7 10.82C5.84 10.4 5 9.3 5 8V7h2v3.82zM19 8c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
                                         </div>
                                         <div>
@@ -276,9 +276,9 @@ const Navbar = () => {
                         value={user ? user._id : ''} 
                         onChange={handleUserSwitch}
                         style={{
-                            background: '#1A162B',
-                            color: '#00fff0',
-                            border: '1px solid #00fff0',
+                            background: '#121212',
+                            color: 'var(--color-cyan)',
+                            border: '1px solid var(--color-cyan)',
                             padding: '8px 12px',
                             borderRadius: '8px',
                             cursor: 'pointer',
@@ -290,7 +290,7 @@ const Navbar = () => {
                     >
                         <option value="">Guest Mode (Viewer)</option>
                         {allUsers.map(u => (
-                            <option key={u._id} value={u._id} style={{ background: '#1A162B', color: '#fff' }}>
+                            <option key={u._id} value={u._id} style={{ background: '#121212', color: '#fff' }}>
                                 {u.username}
                             </option>
                         ))}
