@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { userService } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { userService, tournamentService } from '../services/api';
 
 const Navbar = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const searchRef = useRef(null);
     const [user, setUser] = useState(null);
     const [allUsers, setAllUsers] = useState([]);
+    const [tournaments, setTournaments] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     useEffect(() => {
-        const fetchActiveUser = async () => {
+        const fetchInitialData = async () => {
             try {
-                const usersResponse = await userService.getAllUsers();
-                if (usersResponse.data) {
-                    setAllUsers(usersResponse.data);
-                }
+                const [usersResponse, tournamentsResponse] = await Promise.all([
+                    userService.getAllUsers().catch(() => ({ data: [] })),
+                    tournamentService.getAll().catch(() => ({ data: [] }))
+                ]);
+
+                if (usersResponse.data) setAllUsers(usersResponse.data);
+                if (tournamentsResponse.data) setTournaments(tournamentsResponse.data);
 
                 const userId = localStorage.getItem('playnex_userId');
                 if (userId) {
@@ -28,7 +36,17 @@ const Navbar = () => {
                 console.error("Failed to fetch active user/all users in Navbar:", err.message);
             }
         };
-        fetchActiveUser();
+        fetchInitialData();
+
+        const handleClickOutside = (event) => {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setIsSearchOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
     const handleUserSwitch = (e) => {
@@ -135,6 +153,17 @@ const Navbar = () => {
         fontWeight: 'bold'
     };
 
+    // Filter results based on search query
+    const filteredTournaments = tournaments.filter(t => 
+        t.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        t.game?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const filteredUsers = allUsers.filter(u => 
+        u.username?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const showSearchResults = isSearchOpen && searchQuery.trim().length > 0;
+
     return (
         <header style={headerStyle}>
             {/* Left Breadcrumbs & Page Info */}
@@ -145,46 +174,102 @@ const Navbar = () => {
             </div>
 
             {/* Middle Search Bar */}
-            <div style={searchContainerStyle}>
+            <div style={searchContainerStyle} ref={searchRef}>
                 <svg style={searchIconStyle} viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input
                     type="text"
-                    placeholder="Search tournaments, players, matches..."
+                    placeholder="Search tournaments, players..."
                     style={searchInputStyle}
                     className="navbar-search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchOpen(true)}
                 />
+
+                {/* Search Results Dropdown */}
+                {showSearchResults && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: '0',
+                        right: '0',
+                        marginTop: '10px',
+                        background: '#1A162B',
+                        border: '1px solid var(--border-glass)',
+                        borderRadius: '12px',
+                        padding: '10px 0',
+                        zIndex: 1000,
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}>
+                        {filteredTournaments.length === 0 && filteredUsers.length === 0 && (
+                            <div style={{ padding: '10px 20px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                No results found.
+                            </div>
+                        )}
+
+                        {filteredTournaments.length > 0 && (
+                            <div style={{ marginBottom: '10px' }}>
+                                <div style={{ padding: '5px 20px', fontSize: '0.75rem', color: 'var(--color-cyan)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                    Tournaments
+                                </div>
+                                {filteredTournaments.slice(0, 5).map(t => (
+                                    <div 
+                                        key={t.id || t._id}
+                                        style={{ padding: '10px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                                        onClick={() => {
+                                            navigate(`/bracket/${t.id || t._id}`);
+                                            setIsSearchOpen(false);
+                                            setSearchQuery('');
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <div style={{ background: 'rgba(0, 255, 240, 0.1)', padding: '5px', borderRadius: '6px' }}>
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--color-cyan)"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM7 10.82C5.84 10.4 5 9.3 5 8V7h2v3.82zM19 8c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{t.title}</div>
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t.game}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {filteredUsers.length > 0 && (
+                            <div>
+                                <div style={{ padding: '5px 20px', fontSize: '0.75rem', color: 'var(--color-cyan)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                    Players
+                                </div>
+                                {filteredUsers.slice(0, 5).map(u => (
+                                    <div 
+                                        key={u._id}
+                                        style={{ padding: '10px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                                        onClick={() => {
+                                            navigate(`/leaderboard`);
+                                            setIsSearchOpen(false);
+                                            setSearchQuery('');
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${u.username}`} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border-glass)' }} />
+                                        <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{u.username}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Right User Stats Area */}
             <div style={rightAreaStyle}>
-                {/* Balance & Points */}
-                <div style={pointsBadgeStyle}>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" className="text-cyan">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v12M6 12h12" />
-                    </svg>
-                    <span>29,921 LINCS</span>
-                </div>
-
-                {/* Notification Bell */}
-                <button style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', position: 'relative' }}>
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
-                    </svg>
-                    <span style={{
-                        position: 'absolute',
-                        top: '-3px',
-                        right: '-3px',
-                        background: 'var(--color-pink)',
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%'
-                    }}></span>
-                </button>
-
                 {/* Profile Card */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <select 

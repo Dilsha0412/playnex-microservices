@@ -52,11 +52,16 @@ const OrganizerPage = () => {
 
     const handleFormSubmit = async (e) => {
         e.preventDefault();
+        const parsedMaxPlayers = parseInt(maxPlayers, 10);
+        if (![2, 4, 8, 16].includes(parsedMaxPlayers)) {
+            alert('Tournament player limit must be 2, 4, 8, or 16.');
+            return;
+        }
         try {
             const payload = {
                 name,
                 game: game === 'Other' ? customGame : game,
-                maxPlayers: parseInt(maxPlayers),
+                maxPlayers: parsedMaxPlayers,
                 status
             };
             
@@ -399,14 +404,16 @@ const OrganizerPage = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                 <div className="form-group">
                                     <label className="form-label">Max Competitors</label>
-                                    <input 
-                                        type="number" 
+                                    <select 
                                         className="form-input"
-                                        min="2"
-                                        max="128"
                                         value={maxPlayers}
                                         onChange={(e) => setMaxPlayers(e.target.value)}
-                                    />
+                                    >
+                                        <option value="2">2 Players</option>
+                                        <option value="4">4 Players</option>
+                                        <option value="8">8 Players</option>
+                                        <option value="16">16 Players</option>
+                                    </select>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Initial Status</label>
