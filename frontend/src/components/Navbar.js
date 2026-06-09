@@ -11,6 +11,8 @@ const Navbar = () => {
     const [tournaments, setTournaments] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+    const userDropdownRef = useRef(null);
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -41,6 +43,9 @@ const Navbar = () => {
         const handleClickOutside = (event) => {
             if (searchRef.current && !searchRef.current.contains(event.target)) {
                 setIsSearchOpen(false);
+            }
+            if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+                setIsUserDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -272,29 +277,88 @@ const Navbar = () => {
             <div style={rightAreaStyle}>
                 {/* Profile Card */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <select 
-                        value={user ? user._id : ''} 
-                        onChange={handleUserSwitch}
-                        style={{
-                            background: '#121212',
-                            color: 'var(--color-cyan)',
-                            border: '1px solid var(--color-cyan)',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            fontSize: '0.9rem',
-                            fontWeight: 'bold',
-                            minWidth: '150px'
-                        }}
-                    >
-                        <option value="">Guest Mode (Viewer)</option>
-                        {allUsers.map(u => (
-                            <option key={u._id} value={u._id} style={{ background: '#121212', color: '#fff' }}>
-                                {u.username}
-                            </option>
-                        ))}
-                    </select>
+                    <div style={{ position: 'relative', minWidth: '170px' }} ref={userDropdownRef}>
+                        <div 
+                            onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                            style={{
+                                background: '#121212',
+                                color: 'var(--color-cyan)',
+                                border: '1px solid var(--color-cyan)',
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '0.9rem',
+                                fontWeight: 'bold',
+                                transition: 'var(--transition-smooth)'
+                            }}
+                        >
+                            <span>{user ? user.username : 'Guest Mode (Viewer)'}</span>
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: '8px', transform: isUserDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+                        
+                        {isUserDropdownOpen && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: '6px',
+                                background: '#0d0d0d',
+                                border: '1px solid var(--border-glass-hover)',
+                                borderRadius: '8px',
+                                padding: '6px 0',
+                                zIndex: 1000,
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                minWidth: '180px',
+                                maxHeight: '250px',
+                                overflowY: 'auto'
+                            }}>
+                                <div
+                                    onClick={() => {
+                                        handleUserSwitch({ target: { value: '' } });
+                                        setIsUserDropdownOpen(false);
+                                    }}
+                                    style={{
+                                        padding: '8px 16px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.9rem',
+                                        color: !user ? 'var(--color-cyan)' : 'var(--text-main)',
+                                        background: !user ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                        fontWeight: !user ? '700' : '400'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = !user ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                >
+                                    Guest Mode (Viewer)
+                                </div>
+                                {allUsers.map(u => (
+                                    <div
+                                        key={u._id}
+                                        onClick={() => {
+                                            handleUserSwitch({ target: { value: u._id } });
+                                            setIsUserDropdownOpen(false);
+                                        }}
+                                        style={{
+                                            padding: '8px 16px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            color: user && user._id === u._id ? 'var(--color-cyan)' : 'var(--text-main)',
+                                            background: user && user._id === u._id ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                            fontWeight: user && user._id === u._id ? '700' : '400'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = user && user._id === u._id ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                    >
+                                        {u.username}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     <div style={avatarAreaStyle}>
                         <img

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tournamentService } from '../services/api';
 
@@ -18,6 +18,36 @@ const OrganizerPage = () => {
     const [status, setStatus] = useState('setup');
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState(null);
+
+    // Dropdown Refs & Open States
+    const gameDropdownRef = useRef(null);
+    const maxPlayersDropdownRef = useRef(null);
+    const statusDropdownRef = useRef(null);
+
+    const [isGameDropdownOpen, setIsGameDropdownOpen] = useState(false);
+    const [isMaxPlayersDropdownOpen, setIsMaxPlayersDropdownOpen] = useState(false);
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+    const gameOptions = [
+        { value: 'PUBG: Battlegrounds (PC)', label: 'PUBG: Battlegrounds (PC)' },
+        { value: 'Fifa 23 (Playstation 5)', label: 'Fifa 23 (Playstation 5)' },
+        { value: 'League Of Legends (PC)', label: 'League Of Legends (PC)' },
+        { value: 'Counter Strike Global Offensive', label: 'Counter Strike (PC)' },
+        { value: 'Other', label: 'Other' }
+    ];
+
+    const maxPlayersOptions = [
+        { value: '2', label: '2 Players' },
+        { value: '4', label: '4 Players' },
+        { value: '8', label: '8 Players' },
+        { value: '16', label: '16 Players' }
+    ];
+
+    const statusOptions = [
+        { value: 'setup', label: 'Setup' },
+        { value: 'running', label: 'Running' },
+        { value: 'completed', label: 'Completed' }
+    ];
 
     const fetchTournaments = async () => {
         try {
@@ -47,6 +77,23 @@ const OrganizerPage = () => {
 
     useEffect(() => {
         fetchTournaments();
+        
+        const handleClickOutside = (event) => {
+            if (gameDropdownRef.current && !gameDropdownRef.current.contains(event.target)) {
+                setIsGameDropdownOpen(false);
+            }
+            if (maxPlayersDropdownRef.current && !maxPlayersDropdownRef.current.contains(event.target)) {
+                setIsMaxPlayersDropdownOpen(false);
+            }
+            if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+                setIsStatusDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -355,7 +402,7 @@ const OrganizerPage = () => {
                             &times;
                         </button>
 
-                        <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '20px', background: 'linear-gradient(to right, #fff, var(--color-cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '20px', color: '#ffffff' }}>
                             {isEditing ? 'Edit Tournament' : 'Create New Tournament'}
                         </h2>
 
@@ -372,19 +419,70 @@ const OrganizerPage = () => {
                                 />
                             </div>
 
-                            <div className="form-group">
+                            <div className="form-group" style={{ position: 'relative' }} ref={gameDropdownRef}>
                                 <label className="form-label">Game & Platform</label>
-                                <select 
-                                    className="form-input"
-                                    value={game}
-                                    onChange={(e) => setGame(e.target.value)}
+                                <div 
+                                    onClick={() => setIsGameDropdownOpen(!isGameDropdownOpen)}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        background: 'rgba(0, 0, 0, 0.6)',
+                                        border: isGameDropdownOpen ? '1px solid var(--color-cyan)' : '1px solid var(--border-glass)',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        color: 'var(--text-main)',
+                                        fontSize: '1rem',
+                                        cursor: 'pointer',
+                                        boxShadow: isGameDropdownOpen ? '0 0 8px var(--color-cyan-glow)' : 'none',
+                                        transition: 'var(--transition-smooth)'
+                                    }}
                                 >
-                                    <option value="PUBG: Battlegrounds (PC)">PUBG: Battlegrounds (PC)</option>
-                                    <option value="Fifa 23 (Playstation 5)">Fifa 23 (Playstation 5)</option>
-                                    <option value="League Of Legends (PC)">League Of Legends (PC)</option>
-                                    <option value="Counter Strike Global Offensive">Counter Strike (PC)</option>
-                                    <option value="Other">Other</option>
-                                </select>
+                                    <span>{gameOptions.find(o => o.value === game)?.label || game}</span>
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: isGameDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                {isGameDropdownOpen && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        marginTop: '6px',
+                                        background: '#0d0d0d',
+                                        border: '1px solid var(--border-glass-hover)',
+                                        borderRadius: '8px',
+                                        padding: '6px 0',
+                                        zIndex: 1000,
+                                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto'
+                                    }}>
+                                        {gameOptions.map((opt) => (
+                                            <div
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    setGame(opt.value);
+                                                    setIsGameDropdownOpen(false);
+                                                }}
+                                                style={{
+                                                    padding: '10px 16px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.95rem',
+                                                    color: game === opt.value ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                    background: game === opt.value ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                    fontWeight: game === opt.value ? '700' : '400',
+                                                    transition: 'var(--transition-smooth)'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = game === opt.value ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {game === 'Other' && (
@@ -402,30 +500,135 @@ const OrganizerPage = () => {
                             )}
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div className="form-group">
+                                <div className="form-group" style={{ position: 'relative' }} ref={maxPlayersDropdownRef}>
                                     <label className="form-label">Max Competitors</label>
-                                    <select 
-                                        className="form-input"
-                                        value={maxPlayers}
-                                        onChange={(e) => setMaxPlayers(e.target.value)}
+                                    <div 
+                                        onClick={() => setIsMaxPlayersDropdownOpen(!isMaxPlayersDropdownOpen)}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            background: 'rgba(0, 0, 0, 0.6)',
+                                            border: isMaxPlayersDropdownOpen ? '1px solid var(--color-cyan)' : '1px solid var(--border-glass)',
+                                            borderRadius: '8px',
+                                            padding: '12px',
+                                            color: 'var(--text-main)',
+                                            fontSize: '1rem',
+                                            cursor: 'pointer',
+                                            boxShadow: isMaxPlayersDropdownOpen ? '0 0 8px var(--color-cyan-glow)' : 'none',
+                                            transition: 'var(--transition-smooth)'
+                                        }}
                                     >
-                                        <option value="2">2 Players</option>
-                                        <option value="4">4 Players</option>
-                                        <option value="8">8 Players</option>
-                                        <option value="16">16 Players</option>
-                                    </select>
+                                        <span>{maxPlayersOptions.find(o => String(o.value) === String(maxPlayers))?.label || `${maxPlayers} Players`}</span>
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: isMaxPlayersDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </div>
+                                    {isMaxPlayersDropdownOpen && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            marginTop: '6px',
+                                            background: '#0d0d0d',
+                                            border: '1px solid var(--border-glass-hover)',
+                                            borderRadius: '8px',
+                                            padding: '6px 0',
+                                            zIndex: 1000,
+                                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto'
+                                        }}>
+                                            {maxPlayersOptions.map((opt) => (
+                                                <div
+                                                    key={opt.value}
+                                                    onClick={() => {
+                                                        setMaxPlayers(opt.value);
+                                                        setIsMaxPlayersDropdownOpen(false);
+                                                    }}
+                                                    style={{
+                                                        padding: '10px 16px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.95rem',
+                                                        color: String(maxPlayers) === String(opt.value) ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                        background: String(maxPlayers) === String(opt.value) ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                        fontWeight: String(maxPlayers) === String(opt.value) ? '700' : '400',
+                                                        transition: 'var(--transition-smooth)'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = String(maxPlayers) === String(opt.value) ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                                >
+                                                    {opt.label}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="form-group">
+                                <div className="form-group" style={{ position: 'relative' }} ref={statusDropdownRef}>
                                     <label className="form-label">Initial Status</label>
-                                    <select 
-                                        className="form-input"
-                                        value={status}
-                                        onChange={(e) => setStatus(e.target.value)}
+                                    <div 
+                                        onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            background: 'rgba(0, 0, 0, 0.6)',
+                                            border: isStatusDropdownOpen ? '1px solid var(--color-cyan)' : '1px solid var(--border-glass)',
+                                            borderRadius: '8px',
+                                            padding: '12px',
+                                            color: 'var(--text-main)',
+                                            fontSize: '1rem',
+                                            cursor: 'pointer',
+                                            boxShadow: isStatusDropdownOpen ? '0 0 8px var(--color-cyan-glow)' : 'none',
+                                            transition: 'var(--transition-smooth)'
+                                        }}
                                     >
-                                        <option value="setup">Setup</option>
-                                        <option value="running">Running</option>
-                                        <option value="completed">Completed</option>
-                                    </select>
+                                        <span>{statusOptions.find(o => o.value === status)?.label || status}</span>
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: isStatusDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </div>
+                                    {isStatusDropdownOpen && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            marginTop: '6px',
+                                            background: '#0d0d0d',
+                                            border: '1px solid var(--border-glass-hover)',
+                                            borderRadius: '8px',
+                                            padding: '6px 0',
+                                            zIndex: 1000,
+                                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto'
+                                        }}>
+                                            {statusOptions.map((opt) => (
+                                                <div
+                                                    key={opt.value}
+                                                    onClick={() => {
+                                                        setStatus(opt.value);
+                                                        setIsStatusDropdownOpen(false);
+                                                    }}
+                                                    style={{
+                                                        padding: '10px 16px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.95rem',
+                                                        color: status === opt.value ? 'var(--color-cyan)' : 'var(--text-main)',
+                                                        background: status === opt.value ? 'rgba(255, 85, 0, 0.08)' : 'transparent',
+                                                        fontWeight: status === opt.value ? '700' : '400',
+                                                        transition: 'var(--transition-smooth)'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = status === opt.value ? 'rgba(255, 85, 0, 0.08)' : 'transparent'}
+                                                >
+                                                    {opt.label}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

@@ -13,6 +13,7 @@ export const userService = {
     register: (userData) => api.post('/api/users/register', userData),
     getProfile: (userId) => api.get(`/api/users/${userId}`),
     getAllUsers: () => api.get('/api/users'),
+    deleteUser: (userId) => api.delete(`/api/users/${userId}`),
 };
 
 export const tournamentService = {
@@ -24,13 +25,14 @@ export const tournamentService = {
 };
 
 export const leaderboardService = {
-    getTopPlayers: () => api.get('/api/leaderboard'),
+    getTopPlayers: (game) => api.get('/api/leaderboard', { params: game ? { game } : {} }),
     addScore: (userId, score) => api.post('/api/leaderboard/add-score', { userId, score }),
 };
 
 export const matchService = {
     create: (data) => api.post('/api/matches/create', data),
     addResult: (matchId, winnerId) => api.post('/api/matches/result', { matchId, winnerId }),
+    getTournamentMatches: (tournamentId) => api.get(`/api/matches/tournament/${tournamentId}`),
 };
 
 export default api;

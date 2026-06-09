@@ -181,10 +181,42 @@ const Home = () => {
                     ) : (
                         popularLeagues.map((league) => (
                             <div key={league.id} className="glass-card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ height: '140px', background: `url(${league.image}) center/cover`, position: 'relative' }}>
-                                    <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                        {league.game}
+                                {/* Custom Premium Header */}
+                                <div style={{
+                                    height: '80px',
+                                    background: 'linear-gradient(135deg, rgba(255, 85, 0, 0.15) 0%, rgba(20, 20, 20, 0.95) 100%)',
+                                    borderBottom: '1px solid var(--border-glass)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    padding: '0 16px',
+                                    position: 'relative'
+                                }}>
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        top: '15%',
+                                        height: '70%',
+                                        width: '4px',
+                                        background: 'var(--color-cyan)',
+                                        borderRadius: '0 4px 4px 0',
+                                        boxShadow: '0 0 10px var(--color-cyan-glow)'
+                                    }}></div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tournament Game</span>
+                                        <span style={{ 
+                                            color: league.status === 'completed' ? 'var(--color-pink)' : 'var(--color-green)', 
+                                            fontWeight: 'bold', 
+                                            fontSize: '0.75rem', 
+                                            textTransform: 'uppercase', 
+                                            letterSpacing: '0.5px' 
+                                        }}>
+                                            {league.status}
+                                        </span>
                                     </div>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                        🎮 {league.game}
+                                    </span>
                                 </div>
                                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>{league.title}</h3>
@@ -192,11 +224,8 @@ const Home = () => {
                                         <span>👥 {league.players} Players</span>
                                         <span className="text-cyan">💰 {league.prize}</span>
                                     </div>
-                                    <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', marginBottom: '10px' }}>
+                                    <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', marginBottom: '10px', color: 'var(--text-muted)' }}>
                                         <span>Slots Filled: {league.slots}</span>
-                                        <span style={{ color: league.status === 'completed' ? 'var(--color-pink)' : 'var(--color-green)', fontWeight: 'bold', textTransform: 'capitalize' }}>
-                                            {league.status}
-                                        </span>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
                                         <Link to={`/bracket/${league.id}`} className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.85rem', textAlign: 'center' }}>Details</Link>
@@ -234,19 +263,44 @@ const Home = () => {
                     ) : (
                         upcomingList.map((t) => (
                             <div key={t.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ height: '120px', background: `url(${t.image}) center/cover`, borderRadius: '12px 12px 0 0' }}></div>
-                                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--color-cyan)', fontWeight: '600', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }}>{t.game}</span>
-                                        <span className="badge badge-setup" style={{ fontSize: '0.7rem' }}>Registering</span>
+                                {/* Custom Premium Header */}
+                                <div style={{
+                                    height: '80px',
+                                    background: 'linear-gradient(135deg, rgba(255, 85, 0, 0.15) 0%, rgba(20, 20, 20, 0.95) 100%)',
+                                    borderBottom: '1px solid var(--border-glass)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    padding: '0 16px',
+                                    position: 'relative',
+                                    borderRadius: '12px 12px 0 0'
+                                }}>
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        top: '15%',
+                                        height: '70%',
+                                        width: '4px',
+                                        background: 'var(--color-cyan)',
+                                        borderRadius: '0 4px 4px 0',
+                                        boxShadow: '0 0 10px var(--color-cyan-glow)'
+                                    }}></div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tournament Game</span>
+                                        <span className="badge badge-setup" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>Registering</span>
                                     </div>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                        🎮 {t.game}
+                                    </span>
+                                </div>
+                                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{t.title}</h3>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                                         <span>📅 {t.date}</span>
                                         <span>🏆 {t.prize}</span>
                                     </div>
                                     <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                                        <Link to={`/bracket/${t.id}`} className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }}>Details</Link>
+                                        <Link to={`/bracket/${t.id}`} className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.85rem', textAlign: 'center' }}>Details</Link>
                                         <button 
                                             className="btn-primary" 
                                             style={{ flex: 1, padding: '8px', fontSize: '0.85rem', boxShadow: 'none' }}

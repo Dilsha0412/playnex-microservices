@@ -75,6 +75,24 @@ const RegisterPage = () => {
         window.location.reload();
     };
 
+    const handleDeleteUser = async (id, name) => {
+        if (id === activePlayerId || id === activeOpponentId) {
+            alert(`Cannot delete player "${name}" because they are currently set as the Active Player or Active Opponent in the active session.`);
+            return;
+        }
+        if (!window.confirm(`Are you sure you want to delete player "${name}"?`)) {
+            return;
+        }
+        try {
+            await userService.deleteUser(id);
+            alert(`🗑️ Player "${name}" deleted successfully.`);
+            fetchUsers();
+        } catch (error) {
+            alert('Delete failed: ' + (error.response?.data?.error || error.message));
+            console.error(error);
+        }
+    };
+
     return (
         <div style={{ paddingBottom: '50px' }}>
             {/* Header */}
@@ -87,7 +105,7 @@ const RegisterPage = () => {
                 
                 {/* Left: Registration Form */}
                 <div className="glass-panel" style={{ padding: '30px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '20px', background: 'linear-gradient(to right, #fff, var(--color-cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '20px', color: '#ffffff' }}>
                         Create Player Account
                     </h2>
                     
@@ -139,7 +157,7 @@ const RegisterPage = () => {
 
                 {/* Right: Players List & Switcher */}
                 <div className="glass-panel" style={{ padding: '30px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '20px', background: 'linear-gradient(to right, #fff, var(--color-cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '20px', color: '#ffffff' }}>
                         All Registered Players & Session Management
                     </h2>
 
@@ -223,6 +241,20 @@ const RegisterPage = () => {
                                                 onClick={() => handleSetActiveOpponent(user._id, user.username)}
                                             >
                                                 Use as Opponent
+                                            </button>
+                                            <button 
+                                                className="btn-danger" 
+                                                style={{ 
+                                                    padding: '6px 12px', 
+                                                    fontSize: '0.8rem', 
+                                                    background: 'rgba(255, 60, 0, 0.1)',
+                                                    borderColor: 'rgba(255, 60, 0, 0.3)',
+                                                    color: 'var(--color-pink)',
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={() => handleDeleteUser(user._id, user.username)}
+                                            >
+                                                Delete
                                             </button>
                                         </div>
                                     </div>
