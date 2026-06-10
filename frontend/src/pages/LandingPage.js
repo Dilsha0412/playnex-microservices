@@ -502,7 +502,6 @@ const LandingPage = () => {
 
 
 
-
                     {/* ── FAQ ── */}
                     <div style={sectionTitleStyle}>Frequently Asked Questions</div>
                     {FAQ_ITEMS.map((item, i) => (
