@@ -100,9 +100,7 @@ const Sidebar = () => {
         fontSize: '1.3rem',
         fontWeight: '800',
         letterSpacing: '0.5px',
-        background: 'linear-gradient(to right, #ffffff, var(--color-cyan))',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent'
+        color: '#ffffff'
     };
 
     const menuListStyle = {
@@ -157,8 +155,9 @@ const Sidebar = () => {
                 {/* Main Navigation Links */}
                 <ul style={menuListStyle}>
                     {menuItems.map((item) => {
-                        const isActive = location.pathname === item.path || 
-                                         (item.path !== '/' && location.pathname.startsWith(item.path));
+                        const isActive = item.path.startsWith('/bracket')
+                            ? location.pathname.startsWith('/bracket')
+                            : (location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path)));
                         return (
                             <li key={item.name}>
                                 <Link to={item.path} style={getLinkStyle(isActive)} className="sidebar-link">
