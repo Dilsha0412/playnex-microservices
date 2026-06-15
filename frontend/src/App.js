@@ -46,7 +46,7 @@ function AppContent() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/external-game" element={<ExternalGamePage />} />
           {/* Fallbacks */}
-          <Route path="/tournaments" element={<Navigate to="/bracket/csgo" replace />} />
+          <Route path="/tournaments" element={<BracketPage />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </main>
