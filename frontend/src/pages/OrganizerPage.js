@@ -186,6 +186,9 @@ const OrganizerPage = () => {
             try {
                 await tournamentService.delete(t.id);
                 success('Tournament deleted successfully!');
+                if (localStorage.getItem('playnex_last_tournament') === t.id) {
+                    localStorage.removeItem('playnex_last_tournament');
+                }
                 fetchTournaments();
             } catch (err) {
                 error('Delete failed: ' + (err.response?.data?.error || err.message));

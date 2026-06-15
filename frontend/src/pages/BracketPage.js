@@ -51,13 +51,7 @@ const BracketPage = () => {
             const response = await tournamentService.getAll();
             console.log("[BracketPage] Tournaments returned by backend:", response.data);
             
-            // Redirect to latest tournament from database if visiting generic route
-            if (gameId === 'csgo' && response.data && response.data.length > 0) {
-                const latest = response.data[response.data.length - 1];
-                console.log("[BracketPage] Auto-redirecting to latest tournament:", latest.name);
-                window.location.replace(`/bracket/${latest._id}`);
-                return;
-            }
+            // Intentionally removed auto-redirect to latest tournament to show empty state for new users
 
             const found = response.data.find(t => t._id === gameId);
             console.log("[BracketPage] Matching tournament object:", found);
@@ -89,7 +83,19 @@ const BracketPage = () => {
     };
 
     useEffect(() => {
-        fetchDetails();
+        if (gameId && gameId !== 'csgo') {
+            localStorage.setItem('playnex_last_tournament', gameId);
+            fetchDetails();
+        } else if (!gameId) {
+            const lastTournamentId = localStorage.getItem('playnex_last_tournament');
+            if (lastTournamentId) {
+                window.location.replace(`/bracket/${lastTournamentId}`);
+            } else {
+                fetchDetails();
+            }
+        } else {
+            fetchDetails();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameId]);
 
@@ -855,6 +861,35 @@ const BracketPage = () => {
     };
 
     const standingsData = generateStandings();
+
+    if (!gameId) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '70vh', textAlign: 'center', fontFamily: 'var(--font-family)' }}>
+                <svg viewBox="0 0 24 24" width="100" height="100" fill="none" stroke="var(--color-cyan)" strokeWidth="1" style={{ marginBottom: '24px', opacity: 0.3 }}>
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
+                    <polyline points="7.5 19.79 7.5 14.6 3 12" />
+                    <polyline points="21 12 16.5 14.6 16.5 19.79" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: '#fff', marginBottom: '16px' }}>No Tournament Selected</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '450px', marginBottom: '35px', lineHeight: '1.6' }}>
+                    Welcome to the Tournaments Arena! Please select an active tournament from the Organize page to view its live bracket, standings, and match details.
+                </p>
+                <button 
+                    onClick={() => window.location.href = '/organizer'}
+                    className="btn-primary"
+                    style={{ padding: '14px 28px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                    Go to Organize
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div style={{ paddingBottom: '60px' }}>
