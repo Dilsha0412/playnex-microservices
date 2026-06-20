@@ -34,7 +34,7 @@ const QUICK_LINKS = [
     { icon: '📖', title: 'Getting Started', desc: 'New to PlayNex? Learn the basics.', path: '/register' },
     { icon: '🎮', title: 'Game Guides', desc: 'Tips, rules & supported titles.', path: '/home' },
     { icon: '🛡️', title: 'Account & Security', desc: 'Manage your profile safely.', path: '/register' },
-    { icon: '🏆', title: 'Tournaments Help', desc: 'Creating & joining tournaments.', path: '/bracket/csgo' },
+    { icon: '🏆', title: 'Tournaments Help', desc: 'Creating & joining tournaments.', path: '/tournaments' },
 ];
 
 /* ═══════════════════════════ COMPONENT ═══════════════════════════ */
@@ -423,7 +423,7 @@ const LandingPage = () => {
 
                 <ul style={navMenuStyle} className="hidden-mobile">
                     <li><span style={navLinkStyle} onClick={() => navigate('/home')} className="nav-hover-link">Platform</span></li>
-                    <li><span style={navLinkStyle} onClick={() => navigate('/bracket/csgo')} className="nav-hover-link">Tournaments</span></li>
+                    <li><span style={navLinkStyle} onClick={() => navigate('/tournaments')} className="nav-hover-link">Tournaments</span></li>
                     <li><span style={navLinkStyle} onClick={() => navigate('/leaderboard')} className="nav-hover-link">Leaderboards</span></li>
                     <li><span style={supportNavLinkStyle} onClick={toggleSupport} className="nav-hover-link">Support</span></li>
                 </ul>

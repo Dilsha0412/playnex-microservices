@@ -7,6 +7,7 @@ const Home = () => {
     const { success, error, info } = useNotification();
     const [popularLeagues, setPopularLeagues] = useState([]);
     const [upcomingList, setUpcomingList] = useState([]);
+    const [firstTournamentId, setFirstTournamentId] = useState('');
 
     const loadTournaments = async () => {
         try {
@@ -27,6 +28,12 @@ const Home = () => {
                        'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400'
             }));
 
+            if (fromDb.length > 0) {
+                setFirstTournamentId(fromDb[0].id);
+            } else {
+                setFirstTournamentId('');
+            }
+
             // Popular leagues: running or completed
             const popular = fromDb.filter(t => t.status === 'running' || t.status === 'completed');
             // Upcoming tournaments: setup or upcoming
@@ -38,6 +45,7 @@ const Home = () => {
             console.error("Failed loading tournaments in Home dashboard:", err.message);
             setPopularLeagues([]);
             setUpcomingList([]);
+            setFirstTournamentId('');
         }
     };
 
@@ -159,7 +167,7 @@ const Home = () => {
                     </p>
                     
                     <div style={{ display: 'flex', gap: '15px' }}>
-                        <Link to="/bracket/csgo" className="btn-primary">View Bracket</Link>
+                        <Link to={firstTournamentId ? `/bracket/${firstTournamentId}` : "/organizer"} className="btn-primary">View Bracket</Link>
                         <Link to="/organizer" className="btn-secondary">Setup Tournament</Link>
                     </div>
                 </div>
@@ -171,7 +179,7 @@ const Home = () => {
                 <div>
                 <div style={sectionTitleStyle}>
                     <span>Popular Leagues</span>
-                    <Link to="/bracket/csgo" style={{ fontSize: '0.85rem', color: 'var(--color-cyan)', textDecoration: 'none', fontWeight: '600' }}>
+                    <Link to="/organizer" style={{ fontSize: '0.85rem', color: 'var(--color-cyan)', textDecoration: 'none', fontWeight: '600' }}>
                         View All Leagues &rarr;
                     </Link>
                 </div>

@@ -22,6 +22,8 @@ const BracketPage = () => {
     const [registered, setRegistered] = useState(false);
     const [playersCount, setPlayersCount] = useState(0);
 
+    const [loading, setLoading] = useState(true);
+
     // States for Match API Telemetry Simulation Modal
     const [showApiModal, setShowApiModal] = useState(false);
     const [apiModalData, setApiModalData] = useState(null);
@@ -47,6 +49,7 @@ const BracketPage = () => {
 
     const fetchDetails = async () => {
         try {
+            setLoading(true);
             console.log("[BracketPage] URL gameId param:", gameId);
             const response = await tournamentService.getAll();
             console.log("[BracketPage] Tournaments returned by backend:", response.data);
@@ -62,6 +65,8 @@ const BracketPage = () => {
                 const isJoined = found.players && found.players.includes(userId);
                 setRegistered(isJoined);
                 setPlayersCount(found.players ? found.players.length : 0);
+            } else {
+                setTournament(null);
             }
 
             // Fetch all users for quick registration selector
@@ -79,6 +84,9 @@ const BracketPage = () => {
             }
         } catch (err) {
             console.error("Failed loading tournament details:", err.message);
+            setTournament(null);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -862,7 +870,15 @@ const BracketPage = () => {
 
     const standingsData = generateStandings();
 
-    if (!gameId) {
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '70vh', color: 'var(--text-muted)', fontSize: '1.2rem', fontFamily: 'var(--font-family)' }}>
+                Loading tournament details...
+            </div>
+        );
+    }
+
+    if (!gameId || !tournament) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '70vh', textAlign: 'center', fontFamily: 'var(--font-family)' }}>
                 <svg viewBox="0 0 24 24" width="100" height="100" fill="none" stroke="var(--color-cyan)" strokeWidth="1" style={{ marginBottom: '24px', opacity: 0.3 }}>
@@ -1054,7 +1070,7 @@ const BracketPage = () => {
                 marginBottom: '30px',
                 gap: '4px'
             }}>
-                {['about', 'bracket', 'stream', 'standings', 'matches'].map((tab) => (
+                {['bracket', 'standings', 'matches'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -1079,21 +1095,6 @@ const BracketPage = () => {
 
             {/* TAB CONTENTS */}
 
-            {/* 1. About Tab */}
-            {activeTab === 'about' && (
-                <div className="glass-panel" style={{ padding: '30px', lineHeight: '1.7' }}>
-                    <h2 style={{ marginBottom: '15px', color: '#fff' }}>Tournament Description</h2>
-                    <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>
-                        Welcome to the Counter Strike Global Offensive Fall Major 2026. The world's top 16 professional teams compete head-to-head in a double-elimination bracket for the lion's share of the $250,000 prize pool and a direct seed to the PlayNex Championship Finals.
-                    </p>
-                    <h3 style={{ marginBottom: '10px', color: '#fff' }}>Rules & Format</h3>
-                    <ul style={{ color: 'var(--text-muted)', paddingLeft: '20px', marginBottom: '20px' }}>
-                        <li>All Bracket matches are Best of 3 (Bo3).</li>
-                        <li>Grand Finals are Best of 5 (Bo5) with a 1-map advantage for the upper bracket winner.</li>
-                        <li>Active Map Pool: Mirage, Inferno, Nuke, Overpass, Vertigo, Ancient, Anubis.</li>
-                    </ul>
-                </div>
-            )}
 
             {/* 2. Bracket Tab */}
             {activeTab === 'bracket' && (
@@ -1458,56 +1459,6 @@ const BracketPage = () => {
                 </div>
             )}
 
-            {/* 3. Stream Tab */}
-            {activeTab === 'stream' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px' }} className="hidden-mobile-grid">
-                    {/* Video Player Area */}
-                    <div className="glass-panel" style={{ padding: '12px', background: '#000' }}>
-                        <div style={{
-                            position: 'relative',
-                            paddingTop: '56.25%', // 16:9 aspect ratio
-                            width: '100%'
-                        }}>
-                            <div style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                background: 'linear-gradient(135deg, #1a1a1a 0%, #000000 100%)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <svg viewBox="0 0 24 24" width="60" height="60" fill="var(--color-pink)">
-                                    <polygon points="5 3 19 12 5 21 5 3"/>
-                                </svg>
-                                <span style={{ marginTop: '12px', fontWeight: 'bold', color: '#fff', fontSize: '1.2rem' }}>CS:GO Major Finals Broadcast</span>
-                                <span className="badge badge-running" style={{ marginTop: '10px' }}>LIVE STREAM MOCK</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Chat Area */}
-                    <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '400px' }}>
-                        <div style={{ padding: '12px', borderBottom: '1px solid var(--border-glass)', fontWeight: 'bold' }}>Live Chat</div>
-                        <div style={{ flex: 1, padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
-                            <div><strong className="text-cyan">PlayerOne:</strong> Let's go Dallas! 🏆</div>
-                            <div><strong className="text-pink">GamerMax:</strong> Clutch plays incoming</div>
-                            <div><strong style={{ color: 'var(--color-green)' }}>SniperX:</strong> Unbelievable accuracy!</div>
-                            <div><strong className="text-cyan">Tactician:</strong> Bo3 maps are drafted!</div>
-                        </div>
-                        <div style={{ padding: '12px', borderTop: '1px solid var(--border-glass)' }}>
-                            <input 
-                                type="text" 
-                                placeholder="Send a message..." 
-                                style={{ width: '100%', padding: '8px 12px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-glass)', borderRadius: '6px', color: '#fff' }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* 4. Standings Tab */}
             {activeTab === 'standings' && (
