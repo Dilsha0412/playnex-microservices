@@ -155,8 +155,8 @@ const Sidebar = () => {
                 {/* Main Navigation Links */}
                 <ul style={menuListStyle}>
                     {menuItems.map((item) => {
-                        const isActive = item.path.startsWith('/bracket')
-                            ? location.pathname.startsWith('/bracket')
+                        const isActive = item.path === '/tournaments'
+                            ? (location.pathname.startsWith('/tournaments') || location.pathname.startsWith('/bracket'))
                             : (location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path)));
                         return (
                             <li key={item.name}>
