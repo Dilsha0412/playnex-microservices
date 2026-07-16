@@ -8,7 +8,6 @@ import OrganizerPage from './pages/OrganizerPage';
 import BracketPage from './pages/BracketPage';
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
-import ExternalGamePage from './pages/ExternalGamePage';
 import { userService } from './services/api';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -44,7 +43,6 @@ function AppContent() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/bracket/:gameId" element={<BracketPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/external-game" element={<ExternalGamePage />} />
           {/* Fallbacks */}
           <Route path="/tournaments" element={<BracketPage />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
