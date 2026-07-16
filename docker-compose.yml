@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - playnex-network
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - USER_SERVICE=http://user-service:5000
+      - TOURNAMENT_SERVICE=http://tournament-service:5001
+      - MATCH_SERVICE=http://match-service:5002
+      - LEADERBOARD_SERVICE=http://leaderboard-service:5003
+    depends_on:
+      - user-service
+      - tournament-service
+      - match-service
+      - leaderboard-service
+    networks:
+      - playnex-network
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/playnex
+    depends_on:
+      - mongodb
+    networks:
+      - playnex-network
+
+  tournament-service:
+    build: ./tournament-service
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb://mongodb:27017/playnex
+    depends_on:
+      - mongodb
+    networks:
+      - playnex-network
+
+  match-service:
+    build: ./match-service
+    ports:
+      - "5002:5002"
+    environment:
+      - PORT=5002
+      - MONGO_URI=mongodb://mongodb:27017/playnex
+    depends_on:
+      - mongodb
+    networks:
+      - playnex-network
+
+  leaderboard-service:
+    build: ./leaderboard-service
+    ports:
+      - "5003:5003"
+    environment:
+      - PORT=5003
+      - MONGO_URI=mongodb://mongodb:27017/playnex
+    depends_on:
+      - mongodb
+    networks:
+      - playnex-network
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_API_URL=http://localhost:4000
+    volumes:
+      - ./frontend/src:/usr/src/app/src
+      - ./frontend/public:/usr/src/app/public
+    networks:
+      - playnex-network
+
+networks:
+  playnex-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
